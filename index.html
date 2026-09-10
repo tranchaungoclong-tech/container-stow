@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Container Stow · carton load planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #e7dfd0;
+      --ink: #efe6d4;
+      --muted: #9a907e;
+      --go: #2f7d4a;
+      --nogo: #b42318;
+      --hold: #c45c12;
+      --alpha: #c33d27;
+      --panel: rgba(16, 14, 12, 0.92);
+      --line: rgba(231, 223, 208, 0.14);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; background: #100e0c; color: var(--paper); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    #c { display: block; width: 100%; height: 100%; }
+    button, input, select, textarea { font-family: inherit; }
+    .hud {
+      position: absolute; inset: 14px auto auto 14px; width: min(438px, calc(100vw - 28px));
+      background: var(--panel); border: 1px solid var(--line);
+      backdrop-filter: blur(12px); padding: 14px 14px 12px; z-index: 2;
+      box-shadow: 0 18px 50px rgba(0,0,0,.5); max-height: calc(100vh - 28px); overflow: auto;
+    }
+    .kicker {
+      font-family: "Barlow Condensed", sans-serif; letter-spacing: .2em; font-size: 11px;
+      color: #c4a574; text-transform: uppercase; margin-bottom: 4px;
+    }
+    h1 {
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 28px;
+      line-height: .92; letter-spacing: .02em; color: #f3ead8; margin-bottom: 12px;
+    }
+    .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .chip, .iconbtn, .ghost, .start, .cam {
+      font-family: "Barlow Condensed", sans-serif; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; font-size: 12px; padding: 8px 10px; cursor: pointer;
+      background: #2a261f; color: #e7dfd0; border: 1px solid rgba(231,223,208,.18);
+    }
+    .chip.on, .iconbtn.on { background: var(--alpha); border-color: var(--alpha); color: #fff7ee; }
+    .start {
+      width: 100%; background: var(--alpha); border-color: var(--alpha); color: #fff7ee;
+      font-size: 18px; padding: 12px 10px; margin: 8px 0 10px;
+    }
+    .start:active { transform: translateY(1px); }
+    .field { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+    .field span, label.tiny { font-size: 10px; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; }
+    input[type="number"], input[type="text"], select {
+      background: #1a1713; color: var(--ink); border: 1px solid var(--line); padding: 7px 8px; font-size: 12px; width: 100%;
+    }
+    .sku {
+      border: 1px solid var(--line); padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,.03);
+    }
+    .sku.head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .sku.head input[type="text"] { flex: 1; }
+    .thumb {
+      width: 44px; height: 72px; object-fit: cover; background: #3a3228; border: 1px solid var(--line); flex-shrink: 0;
+    }
+    .drop {
+      font-size: 10px; color: var(--muted); border: 1px dashed rgba(231,223,208,.25);
+      padding: 8px; text-align: center; cursor: pointer; margin-top: 6px;
+    }
+    .drop input { display: none; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0 10px; }
+    .card {
+      text-align: left; padding: 8px 8px 7px; background: #1c1915; border: 1px solid var(--line);
+      cursor: pointer; min-height: 92px;
+    }
+    .card.on { border-color: var(--alpha); box-shadow: inset 0 0 0 1px var(--alpha); }
+    .card.hidden { display: none; }
+    .card .n {
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 15px; color: #f3ead8; line-height: 1;
+    }
+    .card .aka { font-size: 9px; color: var(--muted); margin: 2px 0 6px; }
+    .card .v { font-size: 10px; color: #d9d0bf; line-height: 1.35; }
+    .card .fit { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 13px; margin-top: 4px; letter-spacing: .06em; }
+    .card .fit.go { color: #7dcca0; }
+    .card .fit.hold { color: #f0b27a; }
+    .card .fit.nogo { color: #f0a39c; }
+    .bar { height: 4px; background: #2a251f; margin-top: 6px; position: relative; overflow: hidden; }
+    .bar i { display: block; height: 100%; background: #7dcca0; }
+    .bar i.warn { background: #c45c12; }
+    .bar i.bad { background: #c33d27; }
+    .verdict {
+      display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; margin-bottom: 10px;
+      border-left: 4px solid var(--hold); background: rgba(196, 92, 18, .12);
+    }
+    .verdict.nogo { border-left-color: var(--nogo); background: rgba(180, 35, 24, .12); }
+    .verdict.go { border-left-color: var(--go); background: rgba(47, 125, 74, .12); }
+    .stamp { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: .08em; }
+    .verdict.go .stamp { color: #7dcca0; }
+    .verdict.nogo .stamp { color: #f0a39c; }
+    .verdict.hold .stamp { color: #f0b27a; }
+    .why { font-size: 11px; line-height: 1.45; color: #d9d0bf; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin: 4px 0 8px; }
+    th { text-align: left; color: #9a907e; font-weight: 500; padding: 4px 6px 6px 0; }
+    td { padding: 5px 6px 5px 0; border-top: 1px solid rgba(231,223,208,.08); color: #efe6d4; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .tight { color: #f0b27a; font-weight: 600; }
+    .ok { color: #7dcca0; }
+    .bad { color: #f0a39c; }
+    .hint { font-size: 10px; color: #9a907e; line-height: 1.4; }
+    .right {
+      position: absolute; top: 14px; right: 14px; z-index: 2; display: flex; flex-direction: column; gap: 6px;
+    }
+    .right button { min-width: 108px; }
+    .foot {
+      position: absolute; bottom: 12px; left: 468px; right: 140px; z-index: 2;
+      font-size: 10px; color: #8a8170; display: flex; justify-content: space-between; gap: 12px; pointer-events: none;
+    }
+    .sec { font-family: "Barlow Condensed", sans-serif; font-weight: 700; letter-spacing: .12em; font-size: 11px; color: #c4a574; text-transform: uppercase; margin: 10px 0 6px; }
+    .x, .plus {
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; cursor: pointer;
+      width: 32px; height: 32px; flex-shrink: 0; line-height: 1; font-size: 20px;
+      border: 1px solid rgba(231,223,208,.22); color: #f3ead8;
+    }
+    .x { background: #5a1e16; border-color: #c33d27; color: #ffd7d0; }
+    .plus { background: #1f3d2a; border-color: #2f7d4a; color: #b6e7c8; }
+    .sku-tools { display: flex; gap: 6px; align-items: center; }
+    .add-row { display: flex; gap: 6px; margin-bottom: 8px; }
+    .add-row .ghost { flex: 1; }
+    .ideas {
+      border: 1px solid var(--line); padding: 8px 10px; margin: 8px 0 10px;
+      background: rgba(196, 92, 18, .08); font-size: 11px; line-height: 1.45; color: #d9d0bf;
+    }
+    .ideas b { color: #f3ead8; font-weight: 600; }
+    .ideas li { margin: 4px 0 0 14px; }
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: #c33d27; color: #fff7ee; font-family: "Barlow Condensed", sans-serif;
+      letter-spacing: .08em; font-weight: 700; padding: 8px 14px; z-index: 5; display: none;
+    }
+    .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 8px; }
+    @media (max-width: 860px) {
+      .hud { width: calc(100vw - 24px); left: 12px; top: 12px; max-height: 48vh; }
+      .right { top: auto; bottom: 36px; }
+      .foot { left: 12px; right: 12px; bottom: 8px; }
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <aside class="hud">
+    <div class="kicker">Load planner · internal (inside) dims, not exterior</div>
+    <h1>Container stow</h1>
+
+    <div class="sec">Container</div>
+    <div class="row" id="volRow">
+      <button type="button" class="chip on" data-vol="all">All CBM</button>
+      <button type="button" class="chip" data-vol="rec">Recommended OK</button>
+      <button type="button" class="chip" data-vol="theo">Theoretical OK</button>
+      <button type="button" class="chip" data-vol="geo">Geometry GO</button>
+    </div>
+    <label class="tiny" style="display:flex;gap:8px;align-items:center;margin:4px 0 2px;">
+      <input type="checkbox" id="autoPick" checked /> Auto-pick smallest container that fits
+    </label>
+    <label class="tiny" style="display:flex;gap:8px;align-items:center;margin:2px 0 6px;">
+      <input type="checkbox" id="preferUniform" /> Prefer uniform stack (no mixed rotate unless NO-GO)
+    </label>
+    <div class="cards" id="cards"></div>
+
+    <div class="sec">Carton types</div>
+    <div id="skus"></div>
+    <div class="add-row">
+      <button type="button" class="plus" id="addSku" title="Add carton type">+</button>
+      <button type="button" class="ghost" id="addSku2">+ Add carton type</button>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <label class="field"><span>Clearance / bulge (mm)</span><input id="clearance" type="number" min="0" step="1" value="0" /></label>
+      <label class="field"><span>Default rotate</span>
+        <select id="rotDefault">
+          <option value="auto" selected>Auto — all 6 ways</option>
+          <option value="yaw">Yaw only — keep this side up</option>
+          <option value="fixed">Fixed — no rotate</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label class="field"><span>Layer slice</span>
+        <select id="layerSlice">
+          <option value="all" selected>All layers</option>
+          <option value="floor">Floor only</option>
+          <option value="mid">Mid stack</option>
+          <option value="top">Top layer</option>
+        </select>
+      </label>
+      <label class="tiny" style="display:flex;gap:8px;align-items:center;align-self:end;padding-bottom:8px;">
+        <input type="checkbox" id="showDoor" checked /> Draw door opening
+      </label>
+    </div>
+    <button type="button" class="start" id="start">Start stow</button>
+    <div class="acts">
+      <button type="button" class="ghost" id="copyPlan">Copy factory plan</button>
+      <button type="button" class="ghost" id="shotPng">Save 3D PNG</button>
+      <button type="button" class="ghost" id="saveLocal">Save this job</button>
+      <button type="button" class="ghost" id="loadLocal">Load last job</button>
+    </div>
+
+    <div id="verdict" class="verdict hold">
+      <div>
+        <div class="stamp" id="stamp">READY</div>
+        <div class="why" id="why">Enter carton size + qty. Start auto-rotates to fit the selected container. Cards use theoretical vs recommended CBM to pick the box.</div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>Layer / bay</th><th class="num">Grid</th><th class="num">Pcs</th><th class="num">Gap</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <table>
+      <tbody>
+        <tr><td>Need</td><td class="num" id="needN">—</td></tr>
+        <tr><td>This plan max</td><td class="num" id="maxN">—</td></tr>
+        <tr><td>Overflow (outside door)</td><td class="num" id="overN">—</td></tr>
+        <tr><td>Carton CBM</td><td class="num" id="cbmN">—</td></tr>
+        <tr><td>Theoretical / recommended</td><td class="num" id="volN">—</td></tr>
+        <tr><td>Stack / leftover H</td><td class="num" id="stackH">—</td></tr>
+        <tr><td>Payload kg</td><td class="num" id="kgN">—</td></tr>
+        <tr><td>Leftover slots</td><td class="num" id="slotN">—</td></tr>
+        <tr><td>Util % (geo / rec)</td><td class="num" id="utilN">—</td></tr>
+      </tbody>
+    </table>
+    <div class="ideas" id="ideas">Ideas appear after Start: leftover slots, 20' vs 40'DC vs 40'HC, payload kill.</div>
+    <p class="hint" id="note">Pack uses internal L×W×H (lọt lòng), not the painted 20'/40' exterior. Door opening is smaller than the box — that is a separate kill test. Recommended CBM is stuffing, not empty cube.</p>
+  </aside>
+  <div class="toast" id="toast"></div>
+  <div class="right">
+    <button type="button" class="cam" id="camIso">Isometric</button>
+    <button type="button" class="cam" id="camDoor">Door</button>
+    <button type="button" class="cam" id="camTop">Top</button>
+    <button type="button" class="cam" id="camSide">Side</button>
+    <button type="button" class="cam" id="camNose">Nose</button>
+  </div>
+  <div class="foot">
+    <span>Drag orbit · scroll zoom · OD as given, bulge unverified</span>
+    <span>Rec CBM = stuffing guide · theo CBM = empty internal</span>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    (function () {
+      var CONTAINERS = [
+        { id: "20DC", name: "20' Dry", aka: "20'DC / 20'GP", L: 5.898, W: 2.352, H: 2.393, theoMin: 33.0, theoMax: 33.2, recMin: 28, recMax: 30, doorW: 2.340, doorH: 2.280, payload: 21720 },
+        { id: "40DC", name: "40' Dry", aka: "40'DC / 40'GP", L: 11.998, W: 2.350, H: 2.392, theoMin: 67.5, theoMax: 67.7, recMin: 56, recMax: 58, doorW: 2.340, doorH: 2.280, payload: 26680 },
+        { id: "40HC", name: "40' HC", aka: "40'HC", L: 12.024, W: 2.350, H: 2.698, theoMin: 76.2, theoMax: 76.4, recMin: 65, recMax: 68, doorW: 2.340, doorH: 2.585, payload: 26500 }
+      ];
+
+      var volFilter = "all";
+      var selectedId = "40DC";
+      var lastResults = null;
+      var skuUid = 1;
+      var skus = [
+        { id: "s1", name: "4-585-1601", l: 39.5, w: 39.0, h: 108.0, qty: 375, kg: 0, rot: "auto", on: true, img: "carton_4-585-1601.png", dataUrl: null, map: null }
+      ];
+
+      var canvas = document.getElementById("c");
+      var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+
+      var scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x14110e);
+      scene.fog = new THREE.Fog(0x14110e, 18, 48);
+
+      var camera = new THREE.PerspectiveCamera(42, 1, 0.05, 90);
+      var controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.minDistance = 3;
+      controls.maxDistance = 42;
+
+      scene.add(new THREE.AmbientLight(0x6d6458, 0.62));
+      scene.add(new THREE.HemisphereLight(0xc9d6e2, 0x3a2a18, 0.38));
+      var key = new THREE.DirectionalLight(0xfff1d6, 0.9);
+      key.position.set(6, 14, 8);
+      key.castShadow = true;
+      key.shadow.mapSize.set(2048, 2048);
+      key.shadow.camera.left = -12;
+      key.shadow.camera.right = 12;
+      key.shadow.camera.top = 10;
+      key.shadow.camera.bottom = -10;
+      scene.add(key);
+
+      var floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(56, 32),
+        new THREE.MeshStandardMaterial({ color: 0x1a1713, roughness: 0.95, metalness: 0.05 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.position.y = -0.002;
+      floor.receiveShadow = true;
+      scene.add(floor);
+      var grid = new THREE.GridHelper(48, 48, 0x3a342c, 0x2a251f);
+      grid.position.y = 0.001;
+      scene.add(grid);
+
+      var root = new THREE.Group();
+      scene.add(root);
+
+      function kraftCanvas() {
+        var cv = document.createElement("canvas");
+        cv.width = 256; cv.height = 256;
+        var g = cv.getContext("2d");
+        g.fillStyle = "#c9a36f";
+        g.fillRect(0, 0, 256, 256);
+        g.fillStyle = "rgba(90,60,30,0.14)";
+        for (var i = 0; i < 180; i++) g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+        g.strokeStyle = "rgba(70,45,20,0.28)";
+        g.lineWidth = 4;
+        g.strokeRect(8, 8, 240, 240);
+        return cv;
+      }
+      function makeTex(cv) {
+        var t = new THREE.CanvasTexture(cv);
+        t.anisotropy = 8;
+        t.encoding = THREE.sRGBEncoding;
+        return t;
+      }
+      var kraftMap = makeTex(kraftCanvas());
+
+      function cropCarton(img) {
+        var src = document.createElement("canvas");
+        src.width = img.width; src.height = img.height;
+        var g = src.getContext("2d");
+        g.drawImage(img, 0, 0);
+        var data = g.getImageData(0, 0, src.width, src.height).data;
+        var minX = src.width, minY = src.height, maxX = 0, maxY = 0;
+        for (var y = 0; y < src.height; y += 2) {
+          for (var x = 0; x < src.width; x += 2) {
+            var i = (y * src.width + x) * 4;
+            var r = data[i], gg = data[i + 1], b = data[i + 2];
+            if (r > 232 && gg > 232 && b > 232) continue;
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+          }
+        }
+        if (maxX <= minX) { minX = 0; maxX = src.width; minY = 0; maxY = src.height; }
+        var pad = 4;
+        minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
+        maxX = Math.min(src.width, maxX + pad); maxY = Math.min(src.height, maxY + pad);
+        var w = maxX - minX, h = maxY - minY;
+        var out = document.createElement("canvas");
+        out.width = w; out.height = h;
+        out.getContext("2d").drawImage(src, minX, minY, w, h, 0, 0, w, h);
+        return out;
+      }
+
+      function mm(n) { return Math.round(n * 1000); }
+      function contById(id) {
+        for (var i = 0; i < CONTAINERS.length; i++) if (CONTAINERS[i].id === id) return CONTAINERS[i];
+        return CONTAINERS[1];
+      }
+      function enabledSkus() { return skus.filter(function (s) { return s.on && s.qty > 0 && s.l > 0 && s.w > 0 && s.h > 0; }); }
+      function cartonCbm() {
+        return enabledSkus().reduce(function (a, s) { return a + (s.l * s.w * s.h * s.qty) / 1e6; }, 0);
+      }
+      function totalNeed() {
+        return enabledSkus().reduce(function (a, s) { return a + (s.qty | 0); }, 0);
+      }
+      function totalKg() {
+        return enabledSkus().reduce(function (a, s) { return a + (s.kg || 0) * (s.qty | 0); }, 0);
+      }
+      function toast(msg) {
+        var el = document.getElementById("toast");
+        el.textContent = msg;
+        el.style.display = "block";
+        clearTimeout(toast._t);
+        toast._t = setTimeout(function () { el.style.display = "none"; }, 1800);
+      }
+
+      function orientations(box, mode) {
+        var L = box.l, W = box.w, H = box.h;
+        var raw;
+        if (mode === "fixed") raw = [{ l: L, w: W, h: H, tag: "fixed L×W×H" }];
+        else if (mode === "yaw") raw = [
+          { l: L, w: W, h: H, tag: "up, as entered" },
+          { l: W, w: L, h: H, tag: "up, yaw 90°" }
+        ];
+        else raw = [
+          { l: L, w: W, h: H, tag: "H up · L along" },
+          { l: W, w: L, h: H, tag: "H up · W along" },
+          { l: L, w: H, h: W, tag: "W up · L along" },
+          { l: H, w: L, h: W, tag: "W up · H along" },
+          { l: H, w: W, h: L, tag: "L up · H along" },
+          { l: W, w: H, h: L, tag: "L up · W along" }
+        ];
+        var out = [], seen = {};
+        for (var i = 0; i < raw.length; i++) {
+          var k = raw[i].l.toFixed(5) + "x" + raw[i].w.toFixed(5) + "x" + raw[i].h.toFixed(5);
+          if (seen[k]) continue;
+          seen[k] = 1;
+          out.push(raw[i]);
+        }
+        return out;
+      }
+
+      function doorOk(sku, cont) {
+        var dims = [sku.l / 100, sku.w / 100, sku.h / 100].sort(function (a, b) { return a - b; });
+        return dims[0] <= cont.doorW + 1e-6 && dims[1] <= cont.doorH + 1e-6;
+      }
+
+      function gridFit(len, wid, box) {
+        var nx = Math.floor((len + 1e-9) / box.l);
+        var ny = Math.floor((wid + 1e-9) / box.w);
+        return { nx: nx, ny: ny, nLayer: Math.max(0, nx * ny) };
+      }
+
+      function skuBox(sku, clearanceM) {
+        return { l: sku.l / 100 + clearanceM, w: sku.w / 100 + clearanceM, h: sku.h / 100 + clearanceM };
+      }
+
+      function planForSku(cont, sku, clearanceM, lengthCap) {
+        var box = skuBox(sku, clearanceM);
+        var orients = orientations(box, sku.rot || "auto");
+        var L = lengthCap != null ? lengthCap : cont.L;
+        var best = null;
+
+        var preferU = document.getElementById("preferUniform") && document.getElementById("preferUniform").checked;
+        function consider(p) {
+          if (preferU && p.mixed && best && !best.mixed && best.n >= sku.qty) return;
+          if (!best) { best = p; return; }
+          if (preferU && !p.mixed && best.mixed && p.n >= sku.qty) { best = p; return; }
+          if (p.n > best.n || (p.n === best.n && p.minGap > best.minGap)) best = p;
+        }
+
+        orients.forEach(function (A) {
+          var g = gridFit(L, cont.W, A);
+          var nz = Math.floor((cont.H + 1e-9) / A.h);
+          var n = g.nLayer * nz;
+          consider({
+            kind: "uniform", skuId: sku.id, n: n, A: A, B: null,
+            nx: g.nx, ny: g.ny, nzA: nz, nzB: 0,
+            gapL: L - g.nx * A.l, gapW: cont.W - g.ny * A.w, gapH: cont.H - nz * A.h,
+            usedH: nz * A.h, usedL: g.nx * A.l, mixed: false,
+            minGap: Math.min(L - g.nx * A.l, cont.W - g.ny * A.w, cont.H - nz * A.h)
+          });
+        });
+
+        for (var i = 0; i < orients.length; i++) {
+          for (var j = 0; j < orients.length; j++) {
+            var A = orients[i], B = orients[j];
+            if (A.l === B.l && A.w === B.w && A.h === B.h) continue;
+            var maxA = Math.floor((cont.H + 1e-9) / A.h);
+            for (var nzA = 1; nzA <= maxA; nzA++) {
+              var remH = cont.H - nzA * A.h;
+              var nzB = Math.floor((remH + 1e-9) / B.h);
+              if (nzB < 1) continue;
+              var gA = gridFit(L, cont.W, A);
+              var gB = gridFit(L, cont.W, B);
+              var n = gA.nLayer * nzA + gB.nLayer * nzB;
+              var usedH = nzA * A.h + nzB * B.h;
+              consider({
+                kind: "mixed", skuId: sku.id, n: n, A: A, B: B,
+                nx: gA.nx, ny: gA.ny, nxB: gB.nx, nyB: gB.ny,
+                nzA: nzA, nzB: nzB,
+                gapL: Math.min(L - gA.nx * A.l, L - gB.nx * B.l),
+                gapW: Math.min(cont.W - gA.ny * A.w, cont.W - gB.ny * B.w),
+                gapH: cont.H - usedH,
+                usedH: usedH, usedL: Math.max(gA.nx * A.l, gB.nx * B.l), mixed: true,
+                minGap: Math.min(L - gA.nx * A.l, L - gB.nx * B.l, cont.W - gA.ny * A.w, cont.W - gB.ny * B.w, cont.H - usedH)
+              });
+            }
+          }
+        }
+        if (!best) best = { kind: "uniform", n: 0, A: orients[0], mixed: false, nx: 0, ny: 0, nzA: 0, nzB: 0, gapL: L, gapW: cont.W, gapH: cont.H, usedH: 0, usedL: 0, minGap: 0 };
+        best.qty = sku.qty;
+        best.name = sku.name;
+        return best;
+      }
+
+      function baysNeeded(plan, qty) {
+        var perBay = 0;
+        if (plan.kind === "mixed") {
+          perBay = plan.ny * plan.nzA + (plan.nyB || 0) * plan.nzB;
+          // mixed is full-length layers, not bays
+          return null;
+        }
+        perBay = plan.ny * plan.nzA;
+        if (!perBay) return Infinity;
+        return Math.ceil(qty / perBay);
+      }
+
+      function stowContainer(cont, list, clearanceM) {
+        var cbm = list.reduce(function (a, s) { return a + (s.l * s.w * s.h * s.qty) / 1e6; }, 0);
+        var need = list.reduce(function (a, s) { return a + s.qty; }, 0);
+        var doorFail = list.some(function (s) { return !doorOk(s, cont); });
+        var bays = [];
+        var packed = 0;
+        var overflow = 0;
+        var cursorL = 0;
+        var remainingL = cont.L;
+        var mixedWhole = null;
+
+        if (list.length === 1) {
+          var p = planForSku(cont, list[0], clearanceM, cont.L);
+          mixedWhole = p;
+          packed = Math.min(list[0].qty, p.n);
+          overflow = Math.max(0, list[0].qty - p.n);
+          bays.push({ sku: list[0], plan: p, x0: 0, length: cont.L, take: packed, over: overflow });
+        } else {
+          for (var i = 0; i < list.length; i++) {
+            var sku = list[i];
+            var plan = planForSku(cont, sku, clearanceM, remainingL);
+            var perCross = plan.kind === "mixed" ? Math.max(1, (plan.ny * plan.nzA) + ((plan.nyB || 0) * plan.nzB)) : Math.max(1, plan.ny * plan.nzA);
+            var along = plan.kind === "mixed" ? 1 : Math.max(plan.A.l, 0.001);
+            var nAlong = plan.kind === "mixed" ? 1 : Math.max(1, plan.nx);
+            var capacity = plan.n;
+            var take = Math.min(sku.qty, capacity);
+            var over = Math.max(0, sku.qty - capacity);
+            var usedL;
+            if (plan.kind === "mixed") usedL = remainingL;
+            else usedL = Math.min(remainingL, Math.ceil(take / perCross) * plan.A.l);
+            bays.push({ sku: sku, plan: plan, x0: cursorL, length: usedL, take: take, over: over });
+            packed += take;
+            overflow += over;
+            cursorL += usedL;
+            remainingL = Math.max(0, cont.L - cursorL);
+          }
+        }
+
+        var recMax = cont.recMax;
+        var recMin = cont.recMin;
+        var theo = (cont.L * cont.W * cont.H);
+        var kg = list.reduce(function (a, s) { return a + (s.kg || 0) * (s.qty | 0); }, 0);
+        var kgKnown = list.some(function (s) { return (s.kg || 0) > 0; });
+        var payloadOk = !kgKnown || kg <= cont.payload + 1e-6;
+        var leftover = Math.max(0, (bays[0] && bays[0].plan ? bays[0].plan.n : packed) - packed);
+        if (list.length === 1 && mixedWhole) leftover = Math.max(0, mixedWhole.n - packed);
+        var geoOk = overflow === 0;
+        var recOk = recMax == null ? cbm <= theo * 0.92 : cbm <= recMax + 1e-9;
+        var theoOk = cbm <= cont.theoMax + 0.15;
+        var tight = mixedWhole && (mixedWhole.gapW < 0.015 || mixedWhole.gapL < 0.02);
+        var kind, stamp, why;
+        if (!geoOk || !theoOk) {
+          kind = "nogo"; stamp = "NO-GO";
+          why = !geoOk
+            ? ("Geometry miss: " + packed + " inside, " + overflow + " over on " + cont.aka + ".")
+            : ("Carton CBM " + cbm.toFixed(2) + " exceeds theoretical " + cont.theoMax + " m³.");
+        } else if (kgKnown && !payloadOk) {
+          kind = "nogo"; stamp = "NO-GO";
+          why = "Payload kill: " + Math.round(kg) + " kg vs max " + cont.payload + " kg on " + cont.aka + ". Cube still fits.";
+        } else if (doorFail) {
+          kind = "hold"; stamp = "HOLD";
+          why = "Fits the box on paper, but at least one carton cannot pass the door opening (" + (cont.doorW * 100).toFixed(1) + " × " + (cont.doorH * 100).toFixed(1) + " cm).";
+        } else if (!recOk) {
+          kind = "hold"; stamp = "HOLD";
+          why = "Geometry fits, but carton CBM " + cbm.toFixed(2) + " is over recommended stuffing " + recMin + "–" + recMax + " m³. Stuffing this full is a factory risk.";
+        } else if (mixedWhole && mixedWhole.mixed) {
+          kind = "hold"; stamp = "HOLD";
+          why = "Fits with mixed rotate (" + mixedWhole.A.tag + " + " + mixedWhole.B.tag + "). Factory must confirm crush / this-side-up.";
+        } else if (tight) {
+          kind = "hold"; stamp = "HOLD";
+          why = "Fits on paper. Leftover is tight (W " + mm(mixedWhole.gapW) + " mm / L " + mm(mixedWhole.gapL) + " mm). Confirm bulge.";
+        } else {
+          kind = "go"; stamp = "GO";
+          why = "Qty fits " + cont.aka + " after auto-rotate. CBM " + cbm.toFixed(2) + " is inside recommended " + (recMax == null ? "open-top rule" : (recMin + "–" + recMax + " m³")) + ".";
+        }
+        if (cont.note && kind !== "nogo") why += " " + cont.note;
+
+        return {
+          cont: cont, cbm: cbm, need: need, packed: packed, overflow: overflow, bays: bays,
+          kind: kind, stamp: stamp, why: why, geoOk: geoOk, recOk: recOk, theoOk: theoOk,
+          doorFail: doorFail, theo: theo, mixedWhole: mixedWhole, kg: kg, kgKnown: kgKnown,
+          payloadOk: payloadOk, leftover: leftover
+        };
+      }
+
+      function splitAdvice(map) {
+        var lines = [];
+        var r20 = map["20DC"], r40 = map["40DC"], r40h = map["40HC"];
+        if (r40 && r40.overflow > 0 && r20) {
+          var extra = Math.ceil(r40.overflow / Math.max(1, r20.packed || r20.need || 1));
+          if (r20.geoOk === false && r20.packed > 0) extra = Math.ceil(r40.overflow / r20.packed);
+          lines.push("Overflow " + r40.overflow + " pcs on 40DC → book 1×40DC + leftover on a 20DC (or 2×20DC if cube is light).");
+        }
+        if (r20 && r20.geoOk && r40 && r40.geoOk && r20.cbm > 18 && r20.cbm <= (r20.cont.recMax || 30)) {
+          lines.push("Qty also fits one 20DC. Do not book a 40 unless you need the leftover slots.");
+        }
+        if (r40 && r40h) {
+          if (!r40.geoOk && r40h.geoOk) lines.push("40DC is NO-GO on height/qty. 40HC clears it — use the extra 306 mm.");
+          else if (r40.kind !== "go" && r40h.kind === "go") lines.push("40HC turns this HOLD into GO (height leftover).");
+          else if (r40.mixedWhole && r40.mixedWhole.mixed && r40h.mixedWhole && !r40h.mixedWhole.mixed) lines.push("40HC can stay uniform. 40DC needs mixed rotate.");
+        }
+        if (r40 && r40.leftover > 0 && r40.geoOk) lines.push("Leftover slots on this box: " + r40.leftover + " cartons of the same size. Fill with another SKU or drop qty.");
+        if (r40 && r40.kgKnown && r40.payloadOk === false) lines.push("Weight kills 40DC before cube. Split the kilos, do not stuff more cartons.");
+        if (r20 && r40 && r20.geoOk === false && r40.geoOk && r40.cbm < 32) lines.push("Cube is 20' territory on CBM, but geometry does not fit a 20. That is a 40 because of carton shape, not volume.");
+        return lines;
+      }
+
+      function factoryText(res) {
+        if (!res) return "Run Start first.";
+        var c = res.cont;
+        var lines = [];
+        lines.push("FACTORY LOAD PLAN");
+        lines.push(c.aka + "  internal " + c.L.toFixed(3) + " × " + c.W.toFixed(3) + " × " + c.H.toFixed(3) + " m");
+        lines.push("Door " + (c.doorW * 100).toFixed(1) + " × " + (c.doorH * 100).toFixed(1) + " cm");
+        lines.push("Verdict: " + res.stamp + " — " + res.why);
+        lines.push("Need " + res.need + " pcs · inside " + res.packed + " · overflow " + res.overflow + " · leftover slots " + res.leftover);
+        lines.push("Carton CBM " + res.cbm.toFixed(2) + "  |  theoretical " + c.theoMin + "–" + c.theoMax + "  |  recommended " + (c.recMax == null ? "oversize" : (c.recMin + "–" + c.recMax)));
+        if (res.kgKnown) lines.push("Weight " + Math.round(res.kg) + " kg / payload " + c.payload + " kg");
+        enabledSkus().forEach(function (s) {
+          lines.push("SKU " + s.name + "  " + s.l + "×" + s.w + "×" + s.h + " cm  × " + s.qty + (s.kg ? ("  @ " + s.kg + " kg") : "") + "  rotate=" + s.rot);
+        });
+        res.bays.forEach(function (bay) {
+          var p = bay.plan;
+          if (p.kind === "mixed") {
+            lines.push("Layer A " + p.A.tag + "  grid " + p.nx + "×" + p.ny + "×" + p.nzA);
+            lines.push("Layer B " + p.B.tag + "  grid " + p.nxB + "×" + p.nyB + "×" + p.nzB);
+          } else {
+            lines.push(bay.sku.name + "  " + p.A.tag + "  grid " + p.nx + "×" + p.ny + "×" + p.nzA + "  gap W " + mm(p.gapW) + " mm / H " + mm(p.gapH) + " mm / L " + mm(p.gapL) + " mm");
+          }
+        });
+        lines.push("OD as given. Bulge unverified. Door is a kill test.");
+        return lines.join("\n");
+      }
+
+      function rank(res) {
+        var score = res.kind === "go" ? 300000 : res.kind === "hold" ? 200000 : 100000;
+        score += res.packed;
+        score -= res.cont.theoMax * 40;
+        return score;
+      }
+
+      function computeAll() {
+        var list = enabledSkus();
+        var clearanceM = (parseFloat(document.getElementById("clearance").value) || 0) / 1000;
+        var map = {};
+        CONTAINERS.forEach(function (c) { map[c.id] = stowContainer(c, list, clearanceM); });
+        lastResults = map;
+        return map;
+      }
+
+      function visibleContainers() {
+        return CONTAINERS.filter(function (c) {
+          if (!lastResults) return true;
+          var r = lastResults[c.id];
+          if (volFilter === "rec" && !r.recOk) return false;
+          if (volFilter === "theo" && !r.theoOk) return false;
+          if (volFilter === "geo" && !r.geoOk) return false;
+          return true;
+        });
+      }
+
+      function autoPickIfOn() {
+        if (!document.getElementById("autoPick").checked || !lastResults) return;
+        var vis = visibleContainers();
+        if (!vis.length) return;
+        var best = vis[0];
+        vis.forEach(function (c) {
+          if (rank(lastResults[c.id]) > rank(lastResults[best.id])) best = c;
+        });
+        selectedId = best.id;
+      }
+
+      function setVerdict(kind, stamp, why) {
+        var el = document.getElementById("verdict");
+        el.className = "verdict " + kind;
+        document.getElementById("stamp").textContent = stamp;
+        document.getElementById("why").textContent = why;
+      }
+
+      function paintCards() {
+        var host = document.getElementById("cards");
+        host.innerHTML = "";
+        CONTAINERS.forEach(function (c) {
+          var vis = visibleContainers().some(function (x) { return x.id === c.id; });
+          var r = lastResults ? lastResults[c.id] : null;
+          var pct = r ? Math.min(100, (r.cbm / (c.recMax || c.theoMax)) * 100) : 0;
+          var barClass = !r ? "" : (!r.theoOk ? "bad" : !r.recOk ? "warn" : "");
+          var fit = r ? r.stamp : "—";
+          var fitClass = r ? r.kind : "";
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "card" + (c.id === selectedId ? " on" : "") + (vis ? "" : " hidden");
+          btn.innerHTML =
+            "<div class='n'>" + c.name + "</div>" +
+            "<div class='aka'>" + c.aka + "</div>" +
+            "<div class='v'>Internal: " + c.L.toFixed(3) + " × " + c.W.toFixed(3) + " × " + c.H.toFixed(3) + " m" +
+            "<br>Door: " + (c.doorW * 100).toFixed(0) + " × " + (c.doorH * 100).toFixed(0) + " cm" +
+            "<br>Theo " + c.theoMin + (c.theoMin === c.theoMax ? "" : "–" + c.theoMax) + " · rec " + c.recMin + "–" + c.recMax + " m³" +
+            (r ? "<br>Cargo: " + r.cbm.toFixed(2) + " m³ · max " + r.packed + "/" + r.need + " pcs" : "") + "</div>" +
+            "<div class='fit " + fitClass + "'>" + fit + "</div>" +
+            "<div class='bar'><i class='" + barClass + "' style='width:" + pct + "%'></i></div>";
+          btn.onclick = function () {
+            selectedId = c.id;
+            paintCards();
+            rebuild();
+          };
+          host.appendChild(btn);
+        });
+      }
+
+      function skuHtml(s) {
+        var wrap = document.createElement("div");
+        wrap.className = "sku";
+        wrap.dataset.id = s.id;
+        wrap.innerHTML =
+          "<div class='head'>" +
+            "<img class='thumb' alt='' />" +
+            "<input type='text' data-k='name' value='' />" +
+            "<label class='tiny' style='display:flex;gap:4px;align-items:center;'><input type='checkbox' data-k='on' /> on</label>" +
+            "<div class='sku-tools'>" +
+              "<button type='button' class='plus' title='Add carton type'>+</button>" +
+              "<button type='button' class='x' title='Remove carton type'>×</button>" +
+            "</div>" +
+          "</div>" +
+          "<div class='row'>" +
+            "<label class='field'><span>L cm</span><input type='number' step='0.1' min='0.1' data-k='l' /></label>" +
+            "<label class='field'><span>W cm</span><input type='number' step='0.1' min='0.1' data-k='w' /></label>" +
+            "<label class='field'><span>H cm</span><input type='number' step='0.1' min='0.1' data-k='h' /></label>" +
+            "<label class='field'><span>Qty</span><input type='number' step='1' min='1' data-k='qty' /></label>" +
+            "<label class='field'><span>Kg / ctn</span><input type='number' step='0.1' min='0' data-k='kg' /></label>" +
+          "</div>" +
+          "<label class='field'><span>Rotate</span>" +
+            "<select data-k='rot'>" +
+              "<option value='auto'>Auto — rotate to fit</option>" +
+              "<option value='yaw'>Keep this side up (yaw 90° ok)</option>" +
+              "<option value='fixed'>Fixed orientation</option>" +
+            "</select>" +
+          "</label>" +
+          "<label class='drop'>Import carton photo (optional)<input type='file' accept='image/*' /></label>";
+        wrap.querySelector("[data-k=name]").value = s.name;
+        wrap.querySelector("[data-k=l]").value = s.l;
+        wrap.querySelector("[data-k=w]").value = s.w;
+        wrap.querySelector("[data-k=h]").value = s.h;
+        wrap.querySelector("[data-k=qty]").value = s.qty;
+        wrap.querySelector("[data-k=kg]").value = s.kg || 0;
+        wrap.querySelector("[data-k=rot]").value = s.rot;
+        wrap.querySelector("[data-k=on]").checked = s.on;
+        var thumb = wrap.querySelector(".thumb");
+        thumb.src = s.dataUrl || s.img || "";
+        wrap.querySelector(".x").onclick = function () {
+          skus = skus.filter(function (x) { return x.id !== s.id; });
+          if (!skus.length) addSku();
+          else paintSkus();
+        };
+        wrap.querySelector(".plus").onclick = function () { addSku(); };
+        wrap.querySelectorAll("input, select").forEach(function (el) {
+          el.addEventListener("change", function () {
+            var k = el.getAttribute("data-k");
+            if (!k) return;
+            if (k === "on") s.on = el.checked;
+            else if (k === "name" || k === "rot") s[k] = el.value;
+            else s[k] = parseFloat(el.value) || 0;
+          });
+        });
+        wrap.querySelector("input[type=file]").addEventListener("change", function (ev) {
+          var f = ev.target.files && ev.target.files[0];
+          if (!f) return;
+          var reader = new FileReader();
+          reader.onload = function () {
+            var im = new Image();
+            im.onload = function () {
+              var cropped = cropCarton(im);
+              s.dataUrl = cropped.toDataURL("image/jpeg", 0.72);
+              s.map = makeTex(cropped);
+              thumb.src = s.dataUrl;
+            };
+            im.src = reader.result;
+          };
+          reader.readAsDataURL(f);
+        });
+        return wrap;
+      }
+
+      function paintSkus() {
+        var host = document.getElementById("skus");
+        host.innerHTML = "";
+        skus.forEach(function (s) { host.appendChild(skuHtml(s)); });
+      }
+
+      function boxMesh(w, h, d, mat) {
+        var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+        m.castShadow = true;
+        m.receiveShadow = true;
+        return m;
+      }
+
+      function cartonMaterials(map, tint) {
+        var kraft = new THREE.MeshStandardMaterial({ map: kraftMap, color: tint || 0xffffff, roughness: 0.88, metalness: 0.02 });
+        var face = new THREE.MeshStandardMaterial({ map: map || kraftMap, color: tint || 0xffffff, roughness: 0.82, metalness: 0.02 });
+        return [kraft, kraft, kraft, kraft, face, face];
+      }
+
+      function makeLabel(text) {
+        var cv = document.createElement("canvas");
+        cv.width = 1024; cv.height = 128;
+        var g = cv.getContext("2d");
+        g.font = "600 42px 'IBM Plex Mono', monospace";
+        g.fillStyle = "#f3ead8";
+        g.textAlign = "center";
+        g.fillText(text, 512, 80);
+        var spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
+        spr.scale.set(Math.min(8, Math.max(4.2, text.length * 0.11)), 0.8, 1);
+        return spr;
+      }
+
+      function drawShell(cont) {
+        var wallMat = new THREE.MeshStandardMaterial({
+          color: 0x8a2418, metalness: 0.4, roughness: 0.5, transparent: true, opacity: 0.3, side: THREE.DoubleSide
+        });
+        var shellMat = new THREE.MeshStandardMaterial({
+          color: 0x7a1f16, metalness: 0.35, roughness: 0.55, transparent: true, opacity: 0.16, side: THREE.DoubleSide
+        });
+        var floorC = boxMesh(cont.L, 0.04, cont.W, new THREE.MeshStandardMaterial({ color: 0x4a4036, roughness: 0.8 }));
+        floorC.position.set(cont.L / 2, -0.02, 0);
+        root.add(floorC);
+        var left = boxMesh(cont.L, cont.H, 0.04, wallMat);
+        left.position.set(cont.L / 2, cont.H / 2, -cont.W / 2 - 0.02);
+        root.add(left);
+        var right = boxMesh(cont.L, cont.H, 0.04, wallMat);
+        right.position.set(cont.L / 2, cont.H / 2, cont.W / 2 + 0.02);
+        root.add(right);
+        var nose = boxMesh(0.05, cont.H, cont.W, wallMat);
+        nose.position.set(-0.025, cont.H / 2, 0);
+        root.add(nose);
+        var roof = boxMesh(cont.L, 0.04, cont.W, shellMat);
+        roof.position.set(cont.L / 2, cont.H + 0.02, 0);
+        root.add(roof);
+        var edges = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(cont.L, cont.H, cont.W)),
+          new THREE.LineBasicMaterial({ color: 0xe7c8b0 })
+        );
+        edges.position.set(cont.L / 2, cont.H / 2, 0);
+        root.add(edges);
+        var doorFrame = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.BoxGeometry(0.02, cont.H, cont.W)),
+          new THREE.LineBasicMaterial({ color: 0xf2e2c4 })
+        );
+        doorFrame.position.set(cont.L, cont.H / 2, 0);
+        root.add(doorFrame);
+        var stencil = makeLabel(cont.aka + "  INTERNAL  " + cont.L.toFixed(3) + " × " + cont.W.toFixed(3) + " × " + cont.H.toFixed(3) + " m");
+        stencil.position.set(cont.L / 2, cont.H + 0.28, -cont.W / 2 - 0.02);
+        root.add(stencil);
+        if (document.getElementById("showDoor").checked) {
+          var door = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.BoxGeometry(0.03, cont.doorH, cont.doorW)),
+            new THREE.LineBasicMaterial({ color: 0x7dcca0 })
+          );
+          door.position.set(cont.L + 0.02, cont.doorH / 2, 0);
+          root.add(door);
+          var sill = boxMesh(0.06, 0.03, cont.doorW, new THREE.MeshStandardMaterial({ color: 0x7dcca0, emissive: 0x14331f }));
+          sill.position.set(cont.L + 0.03, 0.02, 0);
+          root.add(sill);
+        }
+      }
+
+      function slab(x, y, z, sx, sy, sz, color, opacity) {
+        var m = new THREE.Mesh(
+          new THREE.BoxGeometry(sx, sy, sz),
+          new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: opacity, depthWrite: false })
+        );
+        m.position.set(x, y, z);
+        root.add(m);
+      }
+
+      function sliceOk(iz, nz) {
+        var mode = document.getElementById("layerSlice").value;
+        if (mode === "all" || nz < 1) return true;
+        if (mode === "floor") return iz === 0;
+        if (mode === "top") return iz === nz - 1;
+        if (mode === "mid") return iz > 0 && iz < nz - 1;
+        return true;
+      }
+
+      function placeLayer(sku, orient, nx, ny, nz, x0, y0, z0, take, tint) {
+        if (take <= 0 || nx < 1 || ny < 1 || nz < 1) return 0;
+        var geo = new THREE.BoxGeometry(orient.l * 0.988, orient.h * 0.988, orient.w * 0.988);
+        var mesh = new THREE.InstancedMesh(geo, cartonMaterials(sku.map, tint), take);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        var dummy = new THREE.Object3D();
+        var n = 0;
+        var shown = 0;
+        outer:
+        for (var iz = 0; iz < nz; iz++) {
+          for (var ix = 0; ix < nx; ix++) {
+            for (var iy = 0; iy < ny; iy++) {
+              if (n >= take) break outer;
+              n++;
+              if (!sliceOk(iz, nz)) continue;
+              dummy.position.set(
+                x0 + orient.l * (ix + 0.5),
+                y0 + orient.h * (iz + 0.5),
+                z0 + orient.w * (iy + 0.5)
+              );
+              dummy.rotation.set(0, 0, 0);
+              dummy.updateMatrix();
+              mesh.setMatrixAt(shown++, dummy.matrix);
+            }
+          }
+        }
+        mesh.count = shown;
+        mesh.instanceMatrix.needsUpdate = true;
+        if (shown) root.add(mesh);
+        return shown;
+      }
+
+      function overflowStack(sku, overN, cont) {
+        if (overN <= 0) return;
+        overN = Math.min(overN, 48);
+        var L = sku.l / 100, W = sku.w / 100, H = sku.h / 100;
+        var geo = new THREE.BoxGeometry(L * 0.988, H * 0.988, W * 0.988);
+        var mesh = new THREE.InstancedMesh(geo, cartonMaterials(sku.map, 0xff6a55), overN);
+        var dummy = new THREE.Object3D();
+        var cols = 5;
+        for (var k = 0; k < overN; k++) {
+          var col = k % cols;
+          var row = Math.floor(k / cols) % 3;
+          var stack = Math.floor(k / (cols * 3));
+          dummy.position.set(
+            cont.L + 0.55 + stack * (L + 0.04),
+            H * (row + 0.5),
+            -cont.W / 2 + 0.12 + col * (W + 0.03)
+          );
+          dummy.updateMatrix();
+          mesh.setMatrixAt(k, dummy.matrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        root.add(mesh);
+      }
+
+      function rebuild() {
+        while (root.children.length) {
+          var ch = root.children.pop();
+          ch.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+        }
+        var cont = contById(selectedId);
+        drawShell(cont);
+        if (!lastResults) {
+          setVerdict("hold", "READY", "Enter carton size + qty, then Start. Auto-rotate tries all allowed orientations, then picks the smallest Dry box that works.");
+          document.getElementById("rows").innerHTML = "";
+          document.getElementById("needN").textContent = String(totalNeed() || "—");
+          document.getElementById("maxN").textContent = "—";
+          document.getElementById("overN").textContent = "—";
+          document.getElementById("cbmN").textContent = cartonCbm() ? cartonCbm().toFixed(2) + " m³" : "—";
+          document.getElementById("volN").textContent = "Theoretical " + cont.theoMin + "–" + cont.theoMax + " · recommended " + (cont.recMax == null ? "oversize" : (cont.recMin + "–" + cont.recMax));
+          document.getElementById("stackH").textContent = "—";
+          return;
+        }
+        var res = lastResults[cont.id];
+        var originZ = -cont.W / 2;
+        var rowHtml = "";
+        res.bays.forEach(function (bay) {
+          var p = bay.plan;
+          var sku = bay.sku;
+          if (p.kind === "mixed") {
+            var botTake = Math.min(bay.take, p.ny * p.nx * p.nzA);
+            var topTake = Math.max(0, bay.take - botTake);
+            placeLayer(sku, p.A, p.nx, p.ny, p.nzA, bay.x0, 0, originZ, botTake, 0xc98a7a);
+            placeLayer(sku, p.B, p.nxB || p.nx, p.nyB || p.ny, p.nzB, bay.x0, p.nzA * p.A.h, originZ, topTake, 0x7ea8d4);
+            overflowStack(sku, bay.over, cont);
+            if (p.gapW > 0.002) slab(cont.L / 2, cont.H / 2, originZ + Math.min(p.ny * p.A.w, (p.nyB || p.ny) * (p.B ? p.B.w : p.A.w)) + p.gapW / 2, cont.L, cont.H, p.gapW, 0xc45c12, 0.4);
+            if (p.gapH > 0.004) slab(cont.L / 2, p.usedH + p.gapH / 2, 0, cont.L, p.gapH, cont.W, 0x3d8ea8, 0.22);
+            rowHtml += "<tr><td>" + sku.name + " · " + p.A.tag + "</td><td class='num'>" + p.nx + " × " + p.ny + " × " + p.nzA + "</td><td class='num'>" + botTake + "</td><td class='num tight'>" + mm(p.gapL) + " mm L</td></tr>";
+            rowHtml += "<tr><td>" + sku.name + " · " + p.B.tag + "</td><td class='num'>" + (p.nxB || 0) + " × " + (p.nyB || 0) + " × " + p.nzB + "</td><td class='num'>" + topTake + "</td><td class='num'>" + mm(p.gapH) + " mm H</td></tr>";
+          } else {
+            var nxUse = p.nx;
+            if (res.bays.length > 1) nxUse = Math.max(1, Math.round(bay.length / p.A.l));
+            placeLayer(sku, p.A, nxUse, p.ny, p.nzA, bay.x0, 0, originZ, bay.take, 0xc9a08a);
+            overflowStack(sku, bay.over, cont);
+            if (p.gapW > 0.002) slab(bay.x0 + bay.length / 2, cont.H / 2, originZ + p.ny * p.A.w + p.gapW / 2, bay.length || p.usedL, cont.H, p.gapW, 0xc45c12, 0.4);
+            if (p.gapH > 0.004) slab(bay.x0 + (bay.length || p.usedL) / 2, p.usedH + p.gapH / 2, 0, bay.length || p.usedL, p.gapH, cont.W, 0x3d8ea8, 0.22);
+            rowHtml += "<tr><td>" + sku.name + " · " + p.A.tag + "</td><td class='num'>" + nxUse + " × " + p.ny + " × " + p.nzA + "</td><td class='num'>" + bay.take + "/" + p.n + "</td><td class='num " + (p.gapW < 0.025 ? "tight" : "ok") + "'>" + mm(p.gapW) + " mm W</td></tr>";
+          }
+        });
+        document.getElementById("rows").innerHTML = rowHtml || "<tr><td colspan='4'>No cartons enabled.</td></tr>";
+        document.getElementById("needN").textContent = String(res.need);
+        document.getElementById("maxN").textContent = res.packed + " inside · overflow " + res.overflow;
+        document.getElementById("overN").textContent = String(res.overflow);
+        document.getElementById("cbmN").textContent = res.cbm.toFixed(2) + " m³";
+        document.getElementById("volN").textContent = "Theoretical " + cont.theoMin + "–" + cont.theoMax + " · recommended " + (cont.recMax == null ? "oversize" : (cont.recMin + "–" + cont.recMax));
+        var usedH = res.mixedWhole ? res.mixedWhole.usedH : (res.bays[0] ? res.bays[0].plan.usedH : 0);
+        var gapH = cont.H - usedH;
+        document.getElementById("stackH").textContent = usedH.toFixed(3) + " m / " + mm(gapH) + " mm";
+        document.getElementById("kgN").textContent = res.kgKnown ? (Math.round(res.kg) + " / " + cont.payload + " kg" + (res.payloadOk ? "" : "  OVER")) : "enter kg/ctn";
+        document.getElementById("slotN").textContent = String(res.leftover);
+        var recDen = cont.recMax || cont.theoMax;
+        document.getElementById("utilN").textContent = (res.cbm / (cont.L * cont.W * cont.H) * 100).toFixed(0) + "% geo · " + (res.cbm / recDen * 100).toFixed(0) + "% rec";
+        document.getElementById("note").textContent = res.why;
+        var ideas = splitAdvice(lastResults);
+        document.getElementById("ideas").innerHTML = ideas.length
+          ? "<b>Ideas</b><ul>" + ideas.map(function (x) { return "<li>" + x + "</li>"; }).join("") + "</ul>"
+          : "<b>Ideas</b> — no split needed. Leftover slots: " + res.leftover + ".";
+        setVerdict(res.kind, res.stamp, res.why);
+      }
+
+      function setCam(kind) {
+        var cont = contById(selectedId);
+        var cx = cont.L / 2, cz = 0, cy = cont.H / 2;
+        controls.target.set(cx, cy * 0.55, cz);
+        if (kind === "iso") camera.position.set(cx + Math.max(8, cont.L * 0.55), 7.4, 9.2);
+        if (kind === "door") camera.position.set(cont.L + 9.5, 3.1, 0.15);
+        if (kind === "top") camera.position.set(cx, 16.5, 0.01);
+        if (kind === "side") camera.position.set(cx, 3.4, 12.5);
+        if (kind === "nose") camera.position.set(-8.5, 3.2, 0.2);
+        controls.update();
+      }
+
+      function resize() {
+        var w = window.innerWidth, h = window.innerHeight;
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+
+      function runStow() {
+        var defRot = document.getElementById("rotDefault").value;
+        skus.forEach(function (s) {
+          if (!s.rot) s.rot = defRot;
+        });
+        computeAll();
+        autoPickIfOn();
+        paintCards();
+        rebuild();
+        setCam("iso");
+      }
+
+      document.getElementById("volRow").onclick = function (e) {
+        var b = e.target.closest("[data-vol]");
+        if (!b) return;
+        volFilter = b.getAttribute("data-vol");
+        document.querySelectorAll("#volRow .chip").forEach(function (x) { x.classList.toggle("on", x === b); });
+        paintCards();
+      };
+      function addSku() {
+        skuUid += 1;
+        skus.push({ id: "s" + skuUid, name: "Carton " + skuUid, l: 40, w: 40, h: 40, qty: 100, kg: 0, rot: document.getElementById("rotDefault").value, on: true, img: "", dataUrl: null, map: null });
+        paintSkus();
+        var last = document.querySelector(".sku:last-child input[data-k=name]");
+        if (last) last.focus();
+      }
+      document.getElementById("addSku").onclick = addSku;
+      document.getElementById("addSku2").onclick = addSku;
+      document.getElementById("start").onclick = runStow;
+      document.getElementById("copyPlan").onclick = function () {
+        var res = lastResults && lastResults[selectedId];
+        var txt = factoryText(res);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function () { toast("Factory plan copied"); }, function () { toast("Copy failed — select from console"); console.log(txt); });
+        } else {
+          toast("Copy failed");
+          console.log(txt);
+        }
+      };
+      document.getElementById("shotPng").onclick = function () {
+        renderer.render(scene, camera);
+        var a = document.createElement("a");
+        a.href = renderer.domElement.toDataURL("image/png");
+        a.download = selectedId + "_stow.png";
+        a.click();
+        toast("PNG saved");
+      };
+      document.getElementById("saveLocal").onclick = function () {
+        var dump = skus.map(function (s) {
+          return { id: s.id, name: s.name, l: s.l, w: s.w, h: s.h, qty: s.qty, kg: s.kg || 0, rot: s.rot, on: s.on };
+        });
+        try {
+          localStorage.setItem("her-stow-job", JSON.stringify({
+            selectedId: selectedId, volFilter: volFilter,
+            clearance: document.getElementById("clearance").value,
+            rotDefault: document.getElementById("rotDefault").value,
+            preferUniform: document.getElementById("preferUniform").checked,
+            skus: dump
+          }));
+          toast("Job saved on this PC");
+        } catch (err) { toast("Save blocked"); }
+      };
+      document.getElementById("loadLocal").onclick = function () {
+        try {
+          var raw = localStorage.getItem("her-stow-job");
+          if (!raw) { toast("No saved job"); return; }
+          var job = JSON.parse(raw);
+          selectedId = job.selectedId || selectedId;
+          volFilter = job.volFilter || volFilter;
+          document.getElementById("clearance").value = job.clearance || 0;
+          document.getElementById("rotDefault").value = job.rotDefault || "auto";
+          document.getElementById("preferUniform").checked = !!job.preferUniform;
+          if (job.skus && job.skus.length) {
+            skus = job.skus.map(function (s, i) {
+              return { id: s.id || ("s" + (i + 1)), name: s.name, l: s.l, w: s.w, h: s.h, qty: s.qty, kg: s.kg || 0, rot: s.rot || "auto", on: s.on !== false, img: "", dataUrl: null, map: null };
+            });
+          }
+          document.querySelectorAll("#volRow .chip").forEach(function (x) { x.classList.toggle("on", x.getAttribute("data-vol") === volFilter); });
+          paintSkus();
+          runStow();
+          toast("Last job loaded");
+        } catch (err) { toast("Load failed"); }
+      };
+      document.getElementById("layerSlice").onchange = function () { if (lastResults) rebuild(); };
+      document.getElementById("showDoor").onchange = function () { rebuild(); };
+      document.getElementById("preferUniform").onchange = function () { if (lastResults) runStow(); };
+      document.getElementById("camIso").onclick = function () { setCam("iso"); };
+      document.getElementById("camDoor").onclick = function () { setCam("door"); };
+      document.getElementById("camTop").onclick = function () { setCam("top"); };
+      document.getElementById("camSide").onclick = function () { setCam("side"); };
+      document.getElementById("camNose").onclick = function () { setCam("nose"); };
+      document.getElementById("rotDefault").onchange = function () {
+        var v = this.value;
+        skus.forEach(function (s) { s.rot = v; });
+        paintSkus();
+      };
+
+      window.addEventListener("resize", resize);
+      paintSkus();
+      paintCards();
+      resize();
+      setCam("iso");
+      rebuild();
+
+      (function tick() {
+        controls.update();
+        renderer.render(scene, camera);
+        requestAnimationFrame(tick);
+      })();
+
+      var loader = new THREE.ImageLoader();
+      loader.setCrossOrigin("anonymous");
+      loader.load("carton_4-585-1601.png", function (img) {
+        var cropped = cropCarton(img);
+        var url = cropped.toDataURL("image/jpeg", 0.7);
+        var tex = makeTex(cropped);
+        skus[0].dataUrl = url;
+        skus[0].map = tex;
+        var t = document.querySelector(".sku .thumb");
+        if (t) t.src = url;
+        rebuild();
+      }, undefined, function () { rebuild(); });
+    })();
+  </script>
+</body>
+</html>
