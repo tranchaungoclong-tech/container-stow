@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Container Stow · carton load planner</title>
   <meta name="theme-color" content="#C33D27" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Container" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
@@ -27,9 +28,11 @@
       --line: rgba(231, 223, 208, 0.14);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; overflow: hidden; background: #100e0c; color: var(--paper); font-family: "IBM Plex Mono", ui-monospace, monospace; }
-    #c { display: block; width: 100%; height: 100%; }
+    html, body { height: 100%; height: 100dvh; overflow: hidden; background: #100e0c; color: var(--paper); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    #c { display: block; width: 100%; height: 100%; touch-action: none; }
     button, input, select, textarea { font-family: inherit; }
+    .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .sheet-handle, .sheet-toggle { display: none; }
     .hud {
       position: absolute; inset: 14px auto auto 14px; width: min(438px, calc(100vw - 28px));
       background: var(--panel); border: 1px solid var(--line);
@@ -145,30 +148,83 @@
     }
     .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 8px; }
     @media (max-width: 860px) {
-      .hud { width: calc(100vw - 24px); left: 12px; top: 12px; max-height: 48vh; }
-      .right { top: auto; bottom: 36px; }
-      .foot { left: 12px; right: 12px; bottom: 8px; }
-      .cards { grid-template-columns: 1fr; }
+      html, body { height: 100dvh; }
+      #c {
+        position: absolute; left: 0; right: 0; top: 0;
+        height: calc(46dvh + env(safe-area-inset-top, 0px));
+      }
+      .hud {
+        inset: auto 0 0 0; width: 100%; max-height: 54dvh;
+        border-radius: 18px 18px 0 0; padding: 6px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+        -webkit-overflow-scrolling: touch;
+      }
+      .hud.collapsed { max-height: calc(42dvh + env(safe-area-inset-bottom, 0px)); }
+      .hud.collapsed .phone-more { display: none; }
+      .sheet-handle {
+        display: block; width: 42px; height: 4px; border-radius: 2px;
+        background: #6a6256; margin: 6px auto 8px;
+      }
+      .sheet-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 44px; min-height: 36px; padding: 6px 10px;
+        font-family: "Barlow Condensed", sans-serif; font-weight: 700; letter-spacing: .06em;
+        text-transform: uppercase; font-size: 12px;
+        background: #2a261f; color: #e7dfd0; border: 1px solid rgba(231,223,208,.18);
+      }
+      h1 { font-size: 22px; margin-bottom: 8px; }
+      .kicker { font-size: 10px; }
+      .chip, .ghost, .cam, .start, .plus, .x {
+        min-height: 44px; padding: 10px 12px; font-size: 13px;
+      }
+      .x, .plus { width: 44px; height: 44px; padding: 0; }
+      input[type="number"], input[type="text"], select {
+        font-size: 16px; min-height: 44px; padding: 10px 10px;
+      }
+      .cards { grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+      .card { min-height: 0; padding: 8px 6px 7px; }
+      .card .n { font-size: 13px; }
+      .card .aka, .card .v { display: none; }
+      .card .fit { font-size: 12px; margin-top: 2px; }
+      .right {
+        top: calc(8px + env(safe-area-inset-top, 0px));
+        right: 8px; left: auto; bottom: auto;
+        flex-direction: row; flex-wrap: wrap; justify-content: flex-end;
+        max-width: 72vw; gap: 4px;
+      }
+      .right button { min-width: 0; min-height: 36px; padding: 8px 9px; font-size: 11px; }
+      .foot { display: none; }
+      .toast { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+      .row { gap: 8px; }
+      .acts { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 860px) and (orientation: landscape) {
+      #c { height: 100dvh; }
+      .hud { max-height: 100dvh; width: min(420px, 52vw); left: 0; right: auto; border-radius: 0; }
+      .right { left: auto; }
     }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
   <aside class="hud">
+    <div class="sheet-handle" aria-hidden="true"></div>
     <div class="kicker">Load planner · internal (inside) dims, not exterior</div>
-    <h1>Container stow</h1>
+    <div class="title-row">
+      <h1>Container stow</h1>
+      <button type="button" class="sheet-toggle" id="sheetToggle">3D</button>
+    </div>
 
     <div class="sec">Container</div>
-    <div class="row" id="volRow">
+    <div class="row phone-more" id="volRow">
       <button type="button" class="chip on" data-vol="all">All CBM</button>
       <button type="button" class="chip" data-vol="rec">Recommended OK</button>
       <button type="button" class="chip" data-vol="theo">Theoretical OK</button>
       <button type="button" class="chip" data-vol="geo">Geometry GO</button>
     </div>
-    <label class="tiny" style="display:flex;gap:8px;align-items:center;margin:4px 0 2px;">
+    <label class="tiny phone-more" style="display:flex;gap:8px;align-items:center;margin:4px 0 2px;">
       <input type="checkbox" id="autoPick" checked /> Auto-pick smallest container that fits
     </label>
-    <label class="tiny" style="display:flex;gap:8px;align-items:center;margin:2px 0 6px;">
+    <label class="tiny phone-more" style="display:flex;gap:8px;align-items:center;margin:2px 0 6px;">
       <input type="checkbox" id="preferUniform" /> Prefer uniform stack (no mixed rotate unless NO-GO)
     </label>
     <div class="cards" id="cards"></div>
@@ -179,7 +235,7 @@
       <button type="button" class="plus" id="addSku" title="Add carton type">+</button>
       <button type="button" class="ghost" id="addSku2">+ Add carton type</button>
     </div>
-    <div class="row" style="margin-top:8px;">
+    <div class="row phone-more" style="margin-top:8px;">
       <label class="field"><span>Clearance / bulge (mm)</span><input id="clearance" type="number" min="0" step="1" value="0" /></label>
       <label class="field"><span>Default rotate</span>
         <select id="rotDefault">
@@ -189,7 +245,7 @@
         </select>
       </label>
     </div>
-    <div class="row">
+    <div class="row phone-more">
       <label class="field"><span>Layer slice</span>
         <select id="layerSlice">
           <option value="all" selected>All layers</option>
@@ -203,38 +259,40 @@
       </label>
     </div>
     <button type="button" class="start" id="start">Start stow</button>
-    <div class="acts">
+    <div class="acts phone-more">
       <button type="button" class="ghost" id="copyPlan">Copy factory plan</button>
       <button type="button" class="ghost" id="shotPng">Save 3D PNG</button>
       <button type="button" class="ghost" id="saveLocal">Save this job</button>
       <button type="button" class="ghost" id="loadLocal">Load last job</button>
     </div>
 
-    <div id="verdict" class="verdict hold">
-      <div>
-        <div class="stamp" id="stamp">READY</div>
-        <div class="why" id="why">Enter carton size + qty. Start auto-rotates to fit the selected container. Cards use theoretical vs recommended CBM to pick the box.</div>
+    <div class="phone-more">
+      <div id="verdict" class="verdict hold">
+        <div>
+          <div class="stamp" id="stamp">READY</div>
+          <div class="why" id="why">Enter carton size + qty. Start auto-rotates to fit the selected container. Cards use theoretical vs recommended CBM to pick the box.</div>
+        </div>
       </div>
+      <table>
+        <thead><tr><th>Layer / bay</th><th class="num">Grid</th><th class="num">Pcs</th><th class="num">Gap</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <table>
+        <tbody>
+          <tr><td>Need</td><td class="num" id="needN">—</td></tr>
+          <tr><td>This plan max</td><td class="num" id="maxN">—</td></tr>
+          <tr><td>Overflow (outside door)</td><td class="num" id="overN">—</td></tr>
+          <tr><td>Carton CBM</td><td class="num" id="cbmN">—</td></tr>
+          <tr><td>Theoretical / recommended</td><td class="num" id="volN">—</td></tr>
+          <tr><td>Stack / leftover H</td><td class="num" id="stackH">—</td></tr>
+          <tr><td>Payload kg</td><td class="num" id="kgN">—</td></tr>
+          <tr><td>Leftover slots</td><td class="num" id="slotN">—</td></tr>
+          <tr><td>Util % (geo / rec)</td><td class="num" id="utilN">—</td></tr>
+        </tbody>
+      </table>
+      <div class="ideas" id="ideas">Ideas appear after Start: leftover slots, 20' vs 40'DC vs 40'HC, payload kill.</div>
+      <p class="hint" id="note">Pack uses internal L×W×H (lọt lòng), not the painted 20'/40' exterior. Door opening is smaller than the box — that is a separate kill test. Recommended CBM is stuffing, not empty cube.</p>
     </div>
-    <table>
-      <thead><tr><th>Layer / bay</th><th class="num">Grid</th><th class="num">Pcs</th><th class="num">Gap</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-    <table>
-      <tbody>
-        <tr><td>Need</td><td class="num" id="needN">—</td></tr>
-        <tr><td>This plan max</td><td class="num" id="maxN">—</td></tr>
-        <tr><td>Overflow (outside door)</td><td class="num" id="overN">—</td></tr>
-        <tr><td>Carton CBM</td><td class="num" id="cbmN">—</td></tr>
-        <tr><td>Theoretical / recommended</td><td class="num" id="volN">—</td></tr>
-        <tr><td>Stack / leftover H</td><td class="num" id="stackH">—</td></tr>
-        <tr><td>Payload kg</td><td class="num" id="kgN">—</td></tr>
-        <tr><td>Leftover slots</td><td class="num" id="slotN">—</td></tr>
-        <tr><td>Util % (geo / rec)</td><td class="num" id="utilN">—</td></tr>
-      </tbody>
-    </table>
-    <div class="ideas" id="ideas">Ideas appear after Start: leftover slots, 20' vs 40'DC vs 40'HC, payload kill.</div>
-    <p class="hint" id="note">Pack uses internal L×W×H (lọt lòng), not the painted 20'/40' exterior. Door opening is smaller than the box — that is a separate kill test. Recommended CBM is stuffing, not empty cube.</p>
   </aside>
   <div class="toast" id="toast"></div>
   <div class="right">
@@ -1014,9 +1072,10 @@
       }
 
       function resize() {
-        var w = window.innerWidth, h = window.innerHeight;
+        var w = canvas.clientWidth || window.innerWidth;
+        var h = canvas.clientHeight || window.innerHeight;
         renderer.setSize(w, h, false);
-        camera.aspect = w / h;
+        camera.aspect = w / Math.max(1, h);
         camera.updateProjectionMatrix();
       }
 
@@ -1116,6 +1175,23 @@
         skus.forEach(function (s) { s.rot = v; });
         paintSkus();
       };
+      (function () {
+        var hud = document.querySelector(".hud");
+        var tog = document.getElementById("sheetToggle");
+        function applySheet() {
+          var collapsed = hud.classList.contains("collapsed");
+          tog.textContent = collapsed ? "Form" : "3D";
+          requestAnimationFrame(resize);
+        }
+        tog.onclick = function () {
+          hud.classList.toggle("collapsed");
+          applySheet();
+        };
+        if (window.matchMedia("(max-width: 860px)").matches) {
+          hud.classList.add("collapsed");
+        }
+        applySheet();
+      })();
 
       window.addEventListener("resize", resize);
       paintSkus();
