@@ -73,9 +73,15 @@
       width: 44px; height: 72px; object-fit: cover; background: #3a3228; border: 1px solid var(--line); flex-shrink: 0;
     }
     .drop {
-      font-size: 10px; color: var(--muted); border: 1px dashed rgba(231,223,208,.25);
-      padding: 8px; text-align: center; cursor: pointer; margin-top: 6px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; letter-spacing: .08em;
+      text-transform: uppercase; font-size: 13px;
+      color: #1c1914; background: #e7dfd0; border: 2px solid #f3ead8;
+      padding: 10px 12px; text-align: center; cursor: pointer; margin-top: 8px;
+      box-shadow: 0 0 0 1px #c4a574, 0 4px 0 #8a6230;
     }
+    .drop:hover, .drop:focus-within { background: #fff7ee; }
+    .drop.has { background: #c4a574; color: #1c1914; }
     .drop input { display: none; }
     .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0 10px; }
     .card {
@@ -173,7 +179,7 @@
       }
       h1 { font-size: 22px; margin-bottom: 8px; }
       .kicker { font-size: 10px; }
-      .chip, .ghost, .cam, .start, .plus, .x {
+      .chip, .ghost, .cam, .start, .plus, .x, .drop {
         min-height: 44px; padding: 10px 12px; font-size: 13px;
       }
       .x, .plus { width: 44px; height: 44px; padding: 0; }
@@ -792,7 +798,7 @@
               "<option value='fixed'>Fixed orientation</option>" +
             "</select>" +
           "</label>" +
-          "<label class='drop'>Import carton photo (optional)<input type='file' accept='image/*' /></label>";
+          "<label class='drop'>Add carton photo<input type='file' accept='image/*' /></label>";
         wrap.querySelector("[data-k=name]").value = s.name;
         wrap.querySelector("[data-k=l]").value = s.l;
         wrap.querySelector("[data-k=w]").value = s.w;
@@ -803,6 +809,10 @@
         wrap.querySelector("[data-k=on]").checked = s.on;
         var thumb = wrap.querySelector(".thumb");
         thumb.src = s.dataUrl || s.img || "";
+        if (s.dataUrl || s.img) {
+          wrap.querySelector(".drop").classList.add("has");
+          wrap.querySelector(".drop").childNodes[0].textContent = "Photo on carton · tap to change";
+        }
         wrap.querySelector(".x").onclick = function () {
           skus = skus.filter(function (x) { return x.id !== s.id; });
           if (!skus.length) addSku();
@@ -829,6 +839,8 @@
               s.dataUrl = cropped.toDataURL("image/jpeg", 0.72);
               s.map = makeTex(cropped);
               thumb.src = s.dataUrl;
+              wrap.querySelector(".drop").classList.add("has");
+              wrap.querySelector(".drop").childNodes[0].textContent = "Photo on carton · tap to change";
             };
             im.src = reader.result;
           };
