@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Container Stow · carton load planner</title>
+  <title>Container Loading · carton load planner</title>
   <meta name="theme-color" content="#C33D27" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
@@ -216,7 +216,7 @@
     <div class="sheet-handle" aria-hidden="true"></div>
     <div class="kicker">Load planner · internal (inside) dims, not exterior</div>
     <div class="title-row">
-      <h1>Container stow</h1>
+      <h1>Container Loading</h1>
       <button type="button" class="sheet-toggle" id="sheetToggle">3D</button>
     </div>
 
@@ -264,7 +264,7 @@
         <input type="checkbox" id="showDoor" checked /> Draw door opening
       </label>
     </div>
-    <button type="button" class="start" id="start">Start stow</button>
+    <button type="button" class="start" id="start">Start loading</button>
     <div class="acts phone-more">
       <button type="button" class="ghost" id="copyPlan">Copy factory plan</button>
       <button type="button" class="ghost" id="shotPng">Save 3D PNG</button>
@@ -870,14 +870,17 @@
 
       function makeLabel(text) {
         var cv = document.createElement("canvas");
-        cv.width = 1024; cv.height = 128;
+        cv.width = 2048; cv.height = 160;
         var g = cv.getContext("2d");
-        g.font = "600 42px 'IBM Plex Mono', monospace";
+        g.clearRect(0, 0, cv.width, cv.height);
+        g.font = "700 48px 'IBM Plex Mono', monospace";
         g.fillStyle = "#f3ead8";
         g.textAlign = "center";
-        g.fillText(text, 512, 80);
-        var spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true }));
-        spr.scale.set(Math.min(8, Math.max(4.2, text.length * 0.11)), 0.8, 1);
+        g.textBaseline = "middle";
+        g.fillText(text, 1024, 80);
+        var spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthTest: false }));
+        var worldW = /INTERNAL/.test(text) ? Math.max(12.2, text.length * 0.155) : Math.min(8, Math.max(3.2, text.length * 0.12));
+        spr.scale.set(worldW, 0.55, 1);
         return spr;
       }
 
@@ -916,7 +919,7 @@
         doorFrame.position.set(cont.L, cont.H / 2, 0);
         root.add(doorFrame);
         var stencil = makeLabel(cont.aka + "  INTERNAL  " + cont.L.toFixed(3) + " × " + cont.W.toFixed(3) + " × " + cont.H.toFixed(3) + " m");
-        stencil.position.set(cont.L / 2, cont.H + 0.28, -cont.W / 2 - 0.02);
+        stencil.position.set(cont.L / 2, cont.H + 0.42, 0);
         root.add(stencil);
         if (document.getElementById("showDoor").checked) {
           var door = new THREE.LineSegments(
@@ -989,21 +992,26 @@
         var geo = new THREE.BoxGeometry(L * 0.988, H * 0.988, W * 0.988);
         var mesh = new THREE.InstancedMesh(geo, cartonMaterials(sku.map, 0xff6a55), overN);
         var dummy = new THREE.Object3D();
-        var cols = 5;
+        var cols = 4;
+        var gap = 0.05;
+        var doorClear = 0.85;
         for (var k = 0; k < overN; k++) {
           var col = k % cols;
-          var row = Math.floor(k / cols) % 3;
-          var stack = Math.floor(k / (cols * 3));
+          var row = Math.floor(k / cols) % 2;
+          var stack = Math.floor(k / (cols * 2));
           dummy.position.set(
-            cont.L + 0.55 + stack * (L + 0.04),
+            cont.L + doorClear + stack * (L + gap),
             H * (row + 0.5),
-            -cont.W / 2 + 0.12 + col * (W + 0.03)
+            (col - (cols - 1) / 2) * (W + gap)
           );
           dummy.updateMatrix();
           mesh.setMatrixAt(k, dummy.matrix);
         }
         mesh.instanceMatrix.needsUpdate = true;
         root.add(mesh);
+        var tag = makeLabel("OVERFLOW  " + overN + " pcs  (outside door)");
+        tag.position.set(cont.L + doorClear + 1.2, Math.max(1.1, H * 2 + 0.35), 0);
+        root.add(tag);
       }
 
       function rebuild() {

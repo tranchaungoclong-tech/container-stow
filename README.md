@@ -1,8 +1,8 @@
-# Container stow
+# Container Loading
 
 Carton load planner for **20'DC / 40'DC / 40'HC**.
 
-Enter carton L×W×H cm + qty, then **Start stow**. The packer uses **internal (inside) dims**, not the painted exterior. Auto-rotate tries allowed orientations. Verdict is GO / HOLD / NO-GO against geometry, door opening, recommended CBM, and payload if kg/ctn is filled.
+Enter carton L×W×H cm + qty, then **Start loading**. The packer uses **internal (inside) dims**, not the painted exterior. Auto-rotate tries allowed orientations. Verdict is GO / HOLD / NO-GO against geometry, door opening, recommended CBM, and payload if kg/ctn is filled.
 
 **Live:** https://tranchaungoclong-tech.github.io/container-stow/
 
