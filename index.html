@@ -77,7 +77,7 @@
     .sku.head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .sku.head input[type="text"] { flex: 1; }
     .thumb {
-      width: 44px; height: 72px; object-fit: contain; background: repeating-conic-gradient(#2a261f 0% 25%, #3a3228 0% 50%) 50% / 12px 12px; border: 1px solid var(--line); flex-shrink: 0;
+      width: 44px; height: 72px; object-fit: contain; background: #d8c4a0; border: 1px solid var(--line); flex-shrink: 0;
     }
     .drop {
       display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -506,15 +506,39 @@
       }
       var kraftMap = makeTex(kraftCanvas());
 
-      function knockOutPhoto(img) {
+      function scalePhoto(img) {
         var maxSide = 900;
         var scale = Math.min(1, maxSide / Math.max(img.width, img.height, 1));
         var w = Math.max(1, Math.round(img.width * scale));
         var h = Math.max(1, Math.round(img.height * scale));
         var src = document.createElement("canvas");
         src.width = w; src.height = h;
+        src.getContext("2d").drawImage(img, 0, 0, w, h);
+        return src;
+      }
+      function isWhiteGlaze(cv) {
+        var w = cv.width, h = cv.height;
+        var x0 = (w * 0.2) | 0, y0 = (h * 0.2) | 0;
+        var dw = Math.max(1, (w * 0.6) | 0), dh = Math.max(1, (h * 0.6) | 0);
+        var d = cv.getContext("2d").getImageData(x0, y0, dw, dh).data;
+        var n = d.length / 4;
+        if (!n) return false;
+        var Lsum = 0, Csum = 0, chromaN = 0;
+        for (var i = 0; i < d.length; i += 4) {
+          var r = d[i], gg = d[i + 1], b = d[i + 2];
+          var mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+          var C = mx - mn;
+          Lsum += (mx + mn) / 2;
+          Csum += C;
+          if (C > 48) chromaN += 1;
+        }
+        return (Lsum / n) >= 155 && (Csum / n) <= 52 && (chromaN / n) <= 0.28;
+      }
+      function knockOutPhoto(img) {
+        var src = scalePhoto(img);
+        var w = src.width, h = src.height;
         var g = src.getContext("2d");
-        g.drawImage(img, 0, 0, w, h);
+        if (isWhiteGlaze(src)) return { alpha: src, solid: src };
         var imgData = g.getImageData(0, 0, w, h);
         var d = imgData.data;
         function px(x, y) {
