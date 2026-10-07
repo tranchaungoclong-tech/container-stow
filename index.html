@@ -362,7 +362,7 @@
       <p class="hint" style="margin:-4px 0 8px;">Factory crate <b>101 × 65 × 65</b> — 2 sit across 2.35 m, 2-high in the box (~44 on 40'GP). Mix 16 nest + stack inside that 65 cm. Auto uses this. Customer size = you type L × W × H.</p>
 
       <div class="step"><i>2</i> Items in the mix</div>
-      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Qty = mix ratio (24 + 24 → 8 + 8 on a 16 mix). Every item is present. Mix = can nest. Set = already 3-in-1, do not put other items inside.</p>
+      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Qty = mix ratio (24 + 24 → 8 + 8 on a 16 mix). Every item is present. Mix = each SKU stands alone — no nest. Set = already 3-in-1 on that one item.</p>
       <div id="pots"></div>
       <div class="add-row">
         <button type="button" class="plus" id="addPot" title="Add item">+</button>
@@ -1582,12 +1582,8 @@
         }
         return potPack(p).d;
       }
-      function canNest(inner, outer) {
-        if (!inner || !outer) return false;
-        if (isSet(inner) || isSet(outer)) return false;
-        if (looksLikeFigure(outer)) return false;
-        if (inner.id === outer.id && !looksLikeFigure(inner)) return false;
-        return nestFoot(inner) <= (Number(outer.belly) || 0) + 1e-6;
+      function canNest() {
+        return false;
       }
       function cavityFits(st, pot) {
         var outerBelly = Number(st.outer && st.outer.belly) || 0;
@@ -1601,56 +1597,22 @@
         return pots.filter(function (p) { return p.on && p.belly > 0 && p.h > 0; });
       }
       function nestStacks(list) {
-        var units = [];
-        list.forEach(function (p) {
-          for (var n = 0; n < (p.qty | 0); n++) units.push(p);
-        });
-        units.sort(function (a, b) {
-          var fa = looksLikeFigure(a) ? 1 : 0;
-          var fb = looksLikeFigure(b) ? 1 : 0;
-          if (fa !== fb) return fa - fb;
-          return (Number(b.belly) || 0) - (Number(a.belly) || 0);
-        });
         var stacks = [];
-        var nested = 0;
-        units.forEach(function (pot) {
-          var op = potPack(pot);
-          var best = null;
-          var bestSlack = 1e9;
-          stacks.forEach(function (st) {
-            if (isSet(st.outer) || isSet(pot)) return;
-            var last = st.inners.length ? st.inners[st.inners.length - 1] : null;
-            var host = (last && !looksLikeFigure(last)) ? last : st.outer;
-            var ok = canNest(pot, host);
-            if (!ok && looksLikeFigure(pot) && canNest(pot, st.outer) && cavityFits(st, pot)) ok = true;
-            if (!ok && looksLikeFigure(pot) && cavityFits(st, pot) && canNest(pot, st.outer)) ok = true;
-            if (!ok) return;
-            var slack = (Number(host.belly) || Number(st.outer.belly) || 0) - nestFoot(pot);
-            if (slack < bestSlack) {
-              bestSlack = slack;
-              best = st;
-            }
-          });
-          if (best) {
-            best.inners.push(pot);
-            best.inner = best.inners[0];
-            best.nested = true;
-            nested += 1;
-            var hostH = potPack(best.outer).h;
-            best.h = Math.max(best.h, hostH + Math.max(0, op.h - hostH * 0.82));
-            return;
+        list.forEach(function (p) {
+          var op = potPack(p);
+          for (var n = 0; n < (p.qty | 0); n++) {
+            stacks.push({
+              d: op.d,
+              h: op.h,
+              outer: p,
+              inner: null,
+              inners: [],
+              nested: false,
+              pack: isSet(p) ? "set" : "mix"
+            });
           }
-          stacks.push({
-            d: op.d,
-            h: op.h,
-            outer: pot,
-            inner: null,
-            inners: [],
-            nested: false,
-            pack: isSet(pot) ? "set" : "mix"
-          });
         });
-        return { stacks: stacks, nested: nested };
+        return { stacks: stacks, nested: 0 };
       }
       function clonePot(src, qty) {
         return {
