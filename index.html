@@ -1564,7 +1564,15 @@
       function looksLikeFigure(pot) {
         if (!pot) return false;
         var name = String(pot.name || "").toLowerCase();
-        return /frog|ếch|ech|animal|figure|tượng|tuong/.test(name);
+        var fold = name.normalize("NFD").replace(/[̀-ͯ]/g, "");
+        return /frog|ech|snail|oc\s*sen|animal|figure|tuong/.test(fold);
+      }
+      function holeD(outer) {
+        if (!outer) return 0;
+        var rim = Number(outer.rim) || 0;
+        var belly = Number(outer.belly) || 0;
+        if (rim > 0) return rim;
+        return belly * 0.86;
       }
       function nestFoot(p) {
         if (looksLikeFigure(p)) {
@@ -1580,15 +1588,16 @@
         if (isSet(inner) || isSet(outer)) return false;
         if (looksLikeFigure(outer)) return false;
         if (inner.id === outer.id && !looksLikeFigure(inner)) return false;
+        if (looksLikeFigure(inner)) return nestFoot(inner) <= holeD(outer) + 1e-6;
         return nestFoot(inner) <= (Number(outer.belly) || 0) + 1e-6;
       }
       function cavityFits(st, pot) {
-        var outerBelly = Number(st.outer && st.outer.belly) || 0;
-        if (!outerBelly) return false;
+        var hole = holeD(st.outer);
+        if (!hole) return false;
         var used = 0;
         (st.inners || []).forEach(function (p) { used += nestFoot(p); });
         used += nestFoot(pot);
-        return used <= outerBelly + 1e-6;
+        return used <= hole + 1e-6;
       }
       function enabledPots() {
         return pots.filter(function (p) { return p.on && p.belly > 0 && p.h > 0; });
@@ -2224,11 +2233,14 @@
                 var ihM = fig
                   ? Math.min(potPack(inn).h / 100, hM * 0.52)
                   : potPack(inn).h / 100;
-                var liftIn = base + (fig ? hM * 0.05 : Math.max(hM * 0.18, hM * 0.36 - ihM * 0.12) + n * Math.max(0.012, ihM * 0.1));
+                var liftIn = base + (fig ? hM * 0.12 : Math.max(hM * 0.18, hM * 0.36 - ihM * 0.12) + n * Math.max(0.012, ihM * 0.1));
                 var ox = 0, oz = 0;
-                if (nIn > 1 || fig) {
-                  var ang = (n / Math.max(nIn, 1)) * Math.PI * 2 + (fig ? 0.4 : 0);
-                  var spread = Math.max(0, (dM - idM) * (fig ? 0.18 : 0.28));
+                if (fig) {
+                  ox = 0;
+                  oz = 0;
+                } else if (nIn > 1) {
+                  var ang = (n / Math.max(nIn, 1)) * Math.PI * 2;
+                  var spread = Math.max(0, (dM - idM) * 0.28);
                   ox = Math.cos(ang) * spread;
                   oz = Math.sin(ang) * spread;
                 }
