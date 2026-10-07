@@ -31,7 +31,13 @@
     html, body { height: 100%; height: 100dvh; overflow: hidden; background: #100e0c; color: var(--paper); font-family: "IBM Plex Mono", ui-monospace, monospace; }
     #c { display: block; width: 100%; height: 100%; touch-action: none; }
     button, input, select, textarea { font-family: inherit; }
-    .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .title-row { display: flex; align-items: flex-end; justify-content: flex-start; gap: 14px; flex-wrap: wrap; }
+    .mix-head {
+      font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 28px;
+      line-height: .92; letter-spacing: .02em; color: #9a907e; margin: 0 0 12px; cursor: pointer;
+      background: none; border: 0; padding: 0; text-align: left;
+    }
+    .mix-head.on { color: #f3ead8; }
     .sheet-handle, .sheet-toggle { display: none; }
     .hud {
       position: absolute; inset: 14px auto auto 14px; width: min(438px, calc(100vw - 28px));
@@ -45,8 +51,9 @@
     }
     h1 {
       font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 28px;
-      line-height: .92; letter-spacing: .02em; color: #f3ead8; margin-bottom: 12px;
+      line-height: .92; letter-spacing: .02em; color: #9a907e; margin-bottom: 12px; cursor: pointer;
     }
+    h1.on { color: #f3ead8; }
     .row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .chip, .iconbtn, .ghost, .start, .cam {
       font-family: "Barlow Condensed", sans-serif; font-weight: 700; letter-spacing: .04em;
@@ -70,7 +77,7 @@
     .sku.head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .sku.head input[type="text"] { flex: 1; }
     .thumb {
-      width: 44px; height: 72px; object-fit: cover; background: #3a3228; border: 1px solid var(--line); flex-shrink: 0;
+      width: 44px; height: 72px; object-fit: contain; background: repeating-conic-gradient(#2a261f 0% 25%, #3a3228 0% 50%) 50% / 12px 12px; border: 1px solid var(--line); flex-shrink: 0;
     }
     .drop {
       display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -82,6 +89,7 @@
     }
     .drop:hover, .drop:focus-within { background: #fff7ee; }
     .drop.has { background: #c4a574; color: #1c1914; }
+    .drop.over { background: #fff7ee; outline: 2px dashed #c33d27; }
     .drop input { display: none; }
     .cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 8px 0 10px; }
     .card {
@@ -153,6 +161,31 @@
       letter-spacing: .08em; font-weight: 700; padding: 8px 14px; z-index: 5; display: none;
     }
     .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 8px; }
+    .tabs { display: flex; gap: 6px; margin: 0 0 10px; }
+    .tabs .chip { flex: 1; text-align: center; font-size: 13px; padding: 10px 8px; }
+    .mode-off { display: none !important; }
+    .rule { font-size: 10px; color: #9a907e; line-height: 1.4; margin: 0 0 8px; }
+    .pot { border: 1px solid var(--line); padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,.03); }
+    .pot .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .qty-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; align-items: end; margin-bottom: 8px; }
+    .pack-toggle { display: flex; gap: 4px; }
+    .pack-toggle .chip { flex: 1; text-align: center; padding: 8px 6px; min-height: 36px; }
+    .mix-hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; align-items: end; margin: 0 0 10px; }
+    .mix-hero .field span { font-size: 11px; color: #c4a574; }
+    .mix-hero input, .mix-hero select { font-size: 18px; min-height: 44px; font-weight: 600; }
+    .pal-mode { display: flex; gap: 4px; }
+    .pal-mode .chip { flex: 1; text-align: center; padding: 10px 6px; }
+    .pal-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+    .pal-custom.off { display: none; }
+    .propose {
+      border: 1px solid rgba(196,165,116,.4); background: rgba(196,165,116,.1);
+      padding: 10px 12px; margin: 0 0 10px; color: #f3ead8;
+    }
+    .propose .k { font-size: 10px; color: #c4a574; letter-spacing: .08em; text-transform: uppercase; }
+    .propose .v { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: .02em; margin: 2px 0 4px; }
+    .propose .s { font-size: 11px; color: #d9d0bf; line-height: 1.4; }
+    .step { font-family: "Barlow Condensed", sans-serif; font-weight: 800; letter-spacing: .08em; font-size: 12px; color: #f3ead8; margin: 12px 0 6px; text-transform: uppercase; }
+    .step i { color: var(--alpha); margin-right: 6px; }
     @media (max-width: 860px) {
       html, body { height: 100dvh; }
       #c {
@@ -178,6 +211,7 @@
         background: #2a261f; color: #e7dfd0; border: 1px solid rgba(231,223,208,.18);
       }
       h1 { font-size: 22px; margin-bottom: 8px; }
+      .mix-head { font-size: 22px; margin-bottom: 8px; }
       .kicker { font-size: 10px; }
       .chip, .ghost, .cam, .start, .plus, .x, .drop {
         min-height: 44px; padding: 10px 12px; font-size: 13px;
@@ -214,12 +248,18 @@
   <canvas id="c"></canvas>
   <aside class="hud">
     <div class="sheet-handle" aria-hidden="true"></div>
-    <div class="kicker">Load planner · internal (inside) dims, not exterior</div>
+    <div class="kicker" id="kicker">Load planner · internal (inside) dims, not exterior</div>
     <div class="title-row">
-      <h1>Container Loading</h1>
+      <h1 id="appTitle" class="on">Container Loading</h1>
+      <button type="button" class="mix-head" id="mixHead">Mix Loading</button>
       <button type="button" class="sheet-toggle" id="sheetToggle">3D</button>
     </div>
+    <div class="tabs">
+      <button type="button" class="chip on" data-mode="carton" id="tabCarton">Loading</button>
+      <button type="button" class="chip" data-mode="mix" id="tabMix">Mix Loading</button>
+    </div>
 
+    <div id="cartonPanel">
     <div class="sec">Container</div>
     <div class="row phone-more" id="volRow">
       <button type="button" class="chip on" data-vol="all">All CBM</button>
@@ -298,6 +338,62 @@
       </table>
       <div class="ideas" id="ideas">Ideas appear after Start: leftover slots, 20' vs 40'DC vs 40'HC, payload kill.</div>
       <p class="hint" id="note">Pack uses internal L×W×H (lọt lòng), not the painted 20'/40' exterior. Door opening is smaller than the box — that is a separate kill test. Recommended CBM is stuffing, not empty cube.</p>
+    </div>
+    </div>
+
+    <div id="mixPanel" class="mode-off">
+      <div class="step"><i>1</i> Customer mix on 1 pallet</div>
+      <div class="mix-hero">
+        <label class="field"><span>How many items in 1 pallet box</span><input id="mixOnPal" type="number" min="1" step="1" value="16" /></label>
+        <label class="field"><span>Pallet size</span>
+          <div class="pal-mode" id="palMode">
+            <button type="button" class="chip on" data-pal="auto">Auto · best 2-across</button>
+            <button type="button" class="chip" data-pal="custom">Customer size</button>
+          </div>
+        </label>
+      </div>
+      <input id="palSize" type="hidden" value="auto" />
+      <div class="pal-custom off" id="palCustom">
+        <label class="field"><span>Pallet L cm</span><input id="palL" type="number" step="0.1" min="20" value="101" /></label>
+        <label class="field"><span>Pallet W cm</span><input id="palW" type="number" step="0.1" min="20" value="65" /></label>
+        <label class="field"><span>Crate H cm</span><input id="palBoxH" type="number" step="0.1" min="20" value="65" /></label>
+      </div>
+      <input id="palH" type="hidden" value="12" />
+      <p class="hint" style="margin:-4px 0 8px;">Factory crate <b>101 × 65 × 65</b> — 2 sit across 2.35 m, 2-high in the box (~44 on 40'GP). Mix 16 nest + stack inside that 65 cm. Auto uses this. Customer size = you type L × W × H.</p>
+
+      <div class="step"><i>2</i> Items in the mix</div>
+      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Tool splits the ratio so every item is present. Mix = can nest. Set = already 3-in-1, do not put others inside.</p>
+      <div id="pots"></div>
+
+      <div class="step"><i>3</i> Pack that pallet</div>
+      <button type="button" class="start" id="startMix">Pack 16 on 1 pallet</button>
+      <button type="button" class="ghost" id="showPalOut" style="width:100%;margin:-4px 0 10px;">Show 1 pallet outside</button>
+      <div class="cards" id="mixCards"></div>
+      <div class="propose" id="mixPropose">
+        <div class="k">Proposed pallet for customer</div>
+        <div class="v" id="mixProposeSize">Pack first</div>
+        <div class="s" id="mixProposeWhy">Auto will show L × W so 2 pallets sit in 2.35 m. Then the table below is qty of each item to fill 20' / 40'GP / 40HC.</div>
+      </div>
+      <div id="mixVerdict" class="verdict hold">
+        <div>
+          <div class="stamp" id="mixStamp">READY</div>
+          <div class="why" id="mixWhy">Type 16 (or the mix count), add items, Pack. 1 pallet draws outside the box. Then click 20' / 40' / 40HC.</div>
+        </div>
+      </div>
+      <table>
+        <tbody>
+          <tr><td>On 1 pallet</td><td class="num" id="mixPer">—</td></tr>
+          <tr><td>Pallet size used</td><td class="num" id="mixOuter">—</td></tr>
+          <tr><td>Mix split on 1 pallet</td><td class="num" id="mixNeed">—</td></tr>
+          <tr><td>Nested on this pallet</td><td class="num" id="mixNest">—</td></tr>
+        </tbody>
+      </table>
+      <div class="sec">To fill 1 box with this mix</div>
+      <p class="hint" style="margin:-2px 0 6px;">Same mix on every pallet. Qty = how many of that item go in a full 20'GP / 40'GP / 40HC.</p>
+      <table>
+        <thead><tr><th>Item</th><th class="num">1 pallet</th><th class="num">20'GP</th><th class="num">40'GP</th><th class="num">40HC</th></tr></thead>
+        <tbody id="mixBreak"></tbody>
+      </table>
     </div>
   </aside>
   <div class="toast" id="toast"></div>
@@ -398,31 +494,132 @@
       }
       var kraftMap = makeTex(kraftCanvas());
 
-      function cropCarton(img) {
+      function knockOutPhoto(img) {
+        var maxSide = 900;
+        var scale = Math.min(1, maxSide / Math.max(img.width, img.height, 1));
+        var w = Math.max(1, Math.round(img.width * scale));
+        var h = Math.max(1, Math.round(img.height * scale));
         var src = document.createElement("canvas");
-        src.width = img.width; src.height = img.height;
+        src.width = w; src.height = h;
         var g = src.getContext("2d");
-        g.drawImage(img, 0, 0);
-        var data = g.getImageData(0, 0, src.width, src.height).data;
-        var minX = src.width, minY = src.height, maxX = 0, maxY = 0;
-        for (var y = 0; y < src.height; y += 2) {
-          for (var x = 0; x < src.width; x += 2) {
-            var i = (y * src.width + x) * 4;
-            var r = data[i], gg = data[i + 1], b = data[i + 2];
-            if (r > 232 && gg > 232 && b > 232) continue;
-            if (x < minX) minX = x; if (x > maxX) maxX = x;
-            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        g.drawImage(img, 0, 0, w, h);
+        var imgData = g.getImageData(0, 0, w, h);
+        var d = imgData.data;
+        function px(x, y) {
+          var i = (y * w + x) * 4;
+          return [d[i], d[i + 1], d[i + 2]];
+        }
+        var samples = [
+          px(1, 1), px(w - 2, 1), px(1, h - 2), px(w - 2, h - 2),
+          px((w / 2) | 0, 1), px((w / 2) | 0, h - 2), px(1, (h / 2) | 0), px(w - 2, (h / 2) | 0)
+        ];
+        var bg = [0, 0, 0];
+        samples.forEach(function (c) { bg[0] += c[0]; bg[1] += c[1]; bg[2] += c[2]; });
+        bg[0] /= samples.length; bg[1] /= samples.length; bg[2] /= samples.length;
+        var spread = 0;
+        samples.forEach(function (c) {
+          var dr = c[0] - bg[0], dg = c[1] - bg[1], db = c[2] - bg[2];
+          spread = Math.max(spread, Math.sqrt(dr * dr + dg * dg + db * db));
+        });
+        var thr = Math.max(28, Math.min(64, spread + 28));
+        var edge = new Uint8Array(w * h);
+        var q = [];
+        function tryEdge(x, y) {
+          if (x < 0 || y < 0 || x >= w || y >= h) return;
+          var idx = y * w + x;
+          if (edge[idx]) return;
+          var i = idx * 4;
+          var dr = d[i] - bg[0], dg = d[i + 1] - bg[1], db = d[i + 2] - bg[2];
+          if (Math.sqrt(dr * dr + dg * dg + db * db) >= thr) return;
+          edge[idx] = 1;
+          q.push(idx);
+        }
+        for (var ex = 0; ex < w; ex++) { tryEdge(ex, 0); tryEdge(ex, h - 1); }
+        for (var ey = 0; ey < h; ey++) { tryEdge(0, ey); tryEdge(w - 1, ey); }
+        while (q.length) {
+          var cur = q.pop();
+          var cx = cur % w, cy = (cur / w) | 0;
+          tryEdge(cx + 1, cy); tryEdge(cx - 1, cy); tryEdge(cx, cy + 1); tryEdge(cx, cy - 1);
+        }
+        var minX = w, minY = h, maxX = 0, maxY = 0;
+        var objR = 0, objG = 0, objB = 0, objN = 0;
+        for (var y = 0; y < h; y++) {
+          for (var x = 0; x < w; x++) {
+            var i = (y * w + x) * 4;
+            if (edge[y * w + x]) d[i + 3] = 0;
+            else {
+              if (x < minX) minX = x; if (x > maxX) maxX = x;
+              if (y < minY) minY = y; if (y > maxY) maxY = y;
+              objR += d[i]; objG += d[i + 1]; objB += d[i + 2]; objN++;
+            }
           }
         }
-        if (maxX <= minX) { minX = 0; maxX = src.width; minY = 0; maxY = src.height; }
-        var pad = 4;
+        g.putImageData(imgData, 0, 0);
+        if (maxX <= minX) { minX = 0; maxX = w - 1; minY = 0; maxY = h - 1; }
+        var pad = 6;
         minX = Math.max(0, minX - pad); minY = Math.max(0, minY - pad);
-        maxX = Math.min(src.width, maxX + pad); maxY = Math.min(src.height, maxY + pad);
-        var w = maxX - minX, h = maxY - minY;
-        var out = document.createElement("canvas");
-        out.width = w; out.height = h;
-        out.getContext("2d").drawImage(src, minX, minY, w, h, 0, 0, w, h);
-        return out;
+        maxX = Math.min(w - 1, maxX + pad); maxY = Math.min(h - 1, maxY + pad);
+        var cw = maxX - minX + 1, ch = maxY - minY + 1;
+        var alpha = document.createElement("canvas");
+        alpha.width = cw; alpha.height = ch;
+        alpha.getContext("2d").drawImage(src, minX, minY, cw, ch, 0, 0, cw, ch);
+        var solid = document.createElement("canvas");
+        solid.width = cw; solid.height = ch;
+        var sg = solid.getContext("2d");
+        sg.fillStyle = objN
+          ? "rgb(" + Math.round(objR / objN) + "," + Math.round(objG / objN) + "," + Math.round(objB / objN) + ")"
+          : "#c4a574";
+        sg.fillRect(0, 0, cw, ch);
+        sg.drawImage(alpha, 0, 0);
+        return { alpha: alpha, solid: solid };
+      }
+      function cropCarton(img) { return knockOutPhoto(img).solid; }
+      function applyPhoto(img, target, thumb, dropEl, onText) {
+        var cut = knockOutPhoto(img);
+        target.dataUrl = cut.alpha.toDataURL("image/png");
+        target.map = makeTex(cut.solid);
+        target.cutTex = makeTex(cut.alpha);
+        target.cutAspect = (cut.alpha.width || 1) / Math.max(cut.alpha.height || 1, 1);
+        thumb.src = target.dataUrl;
+        dropEl.classList.add("has");
+        dropEl.childNodes[0].textContent = onText;
+      }
+      function wirePhotoDrop(dropEl, onImage) {
+        var input = dropEl.querySelector("input[type=file]");
+        function take(file) {
+          if (!file || String(file.type || "").indexOf("image") !== 0) return;
+          var reader = new FileReader();
+          reader.onload = function () {
+            var im = new Image();
+            im.onload = function () { onImage(im); };
+            im.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        }
+        if (input && !input._wired) {
+          input._wired = true;
+          input.addEventListener("change", function (ev) {
+            var f = ev.target.files && ev.target.files[0];
+            if (f) take(f);
+            ev.target.value = "";
+          });
+        }
+        ["dragenter", "dragover"].forEach(function (name) {
+          dropEl.addEventListener(name, function (e) {
+            e.preventDefault(); e.stopPropagation();
+            dropEl.classList.add("over");
+          });
+        });
+        dropEl.addEventListener("dragleave", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          dropEl.classList.remove("over");
+        });
+        dropEl.addEventListener("drop", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          dropEl.classList.remove("over");
+          var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+          take(f);
+        });
       }
 
       function mm(n) { return Math.round(n * 1000); }
@@ -798,7 +995,7 @@
               "<option value='fixed'>Fixed orientation</option>" +
             "</select>" +
           "</label>" +
-          "<label class='drop'>Add carton photo<input type='file' accept='image/*' /></label>";
+          "<label class='drop'>Drop photo or tap<input type='file' accept='image/*' /></label>";
         wrap.querySelector("[data-k=name]").value = s.name;
         wrap.querySelector("[data-k=l]").value = s.l;
         wrap.querySelector("[data-k=w]").value = s.w;
@@ -828,24 +1025,10 @@
             else s[k] = parseFloat(el.value) || 0;
           });
         });
-        wrap.querySelector("input[type=file]").addEventListener("change", function (ev) {
-          var f = ev.target.files && ev.target.files[0];
-          if (!f) return;
-          var reader = new FileReader();
-          reader.onload = function () {
-            var im = new Image();
-            im.onload = function () {
-              var cropped = cropCarton(im);
-              s.dataUrl = cropped.toDataURL("image/jpeg", 0.72);
-              s.map = makeTex(cropped);
-              thumb.src = s.dataUrl;
-              wrap.querySelector(".drop").classList.add("has");
-              wrap.querySelector(".drop").childNodes[0].textContent = "Photo on carton · tap to change";
-            };
-            im.src = reader.result;
-          };
-          reader.readAsDataURL(f);
-        });
+        var dropEl = wrap.querySelector(".drop");
+        function onCartonImg(im) { applyPhoto(im, s, thumb, dropEl, "Photo on · drop to change"); }
+        wirePhotoDrop(dropEl, onCartonImg);
+        wirePhotoDrop(wrap, onCartonImg);
         return wrap;
       }
 
@@ -1213,9 +1396,849 @@
         applySheet();
       })();
 
+      var appMode = "carton";
+      var CARTON_PAD = 0.5;
+      var WOOD_CM = 3;
+      var BOARD_CM = 1;
+      var potUid = 2;
+      var pots = [
+        { id: "p1", name: "Pot A", belly: 32, rim: 28, base: 18, h: 28, qty: 24, pack: "mix", on: true, dataUrl: null, map: null },
+        { id: "p2", name: "Pot B", belly: 24, rim: 22, base: 14, h: 22, qty: 24, pack: "mix", on: true, dataUrl: null, map: null }
+      ];
+      var mixPlan = null;
+      var mixContId = "40DC";
+      var mixView = "pallet";
+      var FACTORY_CRATE = { L: 101, W: 65, H: 65, name: "101×65×65 factory" };
+      var PALLET_CATALOG = [
+        { key: "101x65", L: 101, W: 65, H: 65, name: "101×65×65 factory" }
+      ];
+      var BOX_W_M = 2.35;
+      var DECK_CM = 12;
+      function twoAcrossScore(Lcm, Wcm) {
+        var gap = BOARD_CM / 100;
+        var oL = Lcm / 100;
+        var oW = Wcm / 100;
+        var nyA = Math.floor((BOX_W_M + 1e-9) / (oW + gap));
+        var nyB = Math.floor((BOX_W_M + 1e-9) / (oL + gap));
+        return Math.max(nyA, nyB);
+      }
+
+      function potPack(p) {
+        return {
+          d: (Number(p.belly) || 0) + CARTON_PAD,
+          h: (Number(p.h) || 0) + CARTON_PAD,
+          belly: Number(p.belly) || 0
+        };
+      }
+      function isSet(p) {
+        return p && String(p.pack || "mix").toLowerCase() === "set";
+      }
+      function looksLikeFigure(pot) {
+        if (!pot) return false;
+        var name = String(pot.name || "").toLowerCase();
+        if (/frog|ếch|ech|animal|figure|tượng|tuong/.test(name)) return true;
+        var belly = Number(pot.belly) || 0;
+        var rim = Number(pot.rim) || belly;
+        var h = Number(pot.h) || 0;
+        var base = Number(pot.base) || 0;
+        if (h > 0 && belly > 0 && (h < belly * 0.75 || rim < belly * 0.72)) return true;
+        if ((pot.cutTex || pot.cutAspect) && h > 0 && belly > 0 && h <= belly * 0.92 && base >= belly * 0.5) return true;
+        return false;
+      }
+      function nestFoot(p) {
+        if (looksLikeFigure(p)) {
+          var base = Number(p.base) || 0;
+          var belly = Number(p.belly) || 0;
+          var d = base > 0 ? Math.min(base, belly * 0.62) : belly * 0.55;
+          return Math.max(4, d + CARTON_PAD);
+        }
+        return potPack(p).d;
+      }
+      function canNest(inner, outer) {
+        if (!inner || !outer) return false;
+        if (isSet(inner) || isSet(outer)) return false;
+        if (looksLikeFigure(outer)) return false;
+        if (inner.id === outer.id && !looksLikeFigure(inner)) return false;
+        return nestFoot(inner) <= (Number(outer.belly) || 0) + 1e-6;
+      }
+      function cavityFits(st, pot) {
+        var outerBelly = Number(st.outer && st.outer.belly) || 0;
+        if (!outerBelly) return false;
+        var used = 0;
+        (st.inners || []).forEach(function (p) { used += nestFoot(p); });
+        used += nestFoot(pot);
+        return used <= outerBelly + 1e-6;
+      }
+      function enabledPots() {
+        return pots.filter(function (p) { return p.on && p.belly > 0 && p.h > 0; });
+      }
+      function nestStacks(list) {
+        var units = [];
+        list.forEach(function (p) {
+          for (var n = 0; n < (p.qty | 0); n++) units.push(p);
+        });
+        units.sort(function (a, b) {
+          var fa = looksLikeFigure(a) ? 1 : 0;
+          var fb = looksLikeFigure(b) ? 1 : 0;
+          if (fa !== fb) return fa - fb;
+          return (Number(b.belly) || 0) - (Number(a.belly) || 0);
+        });
+        var stacks = [];
+        var nested = 0;
+        units.forEach(function (pot) {
+          var op = potPack(pot);
+          var best = null;
+          var bestSlack = 1e9;
+          stacks.forEach(function (st) {
+            if (isSet(st.outer) || isSet(pot)) return;
+            var last = st.inners.length ? st.inners[st.inners.length - 1] : null;
+            var host = (last && !looksLikeFigure(last)) ? last : st.outer;
+            var ok = canNest(pot, host);
+            if (!ok && looksLikeFigure(pot) && canNest(pot, st.outer) && cavityFits(st, pot)) ok = true;
+            if (!ok && looksLikeFigure(pot) && cavityFits(st, pot) && canNest(pot, st.outer)) ok = true;
+            if (!ok) return;
+            var slack = (Number(host.belly) || Number(st.outer.belly) || 0) - nestFoot(pot);
+            if (slack < bestSlack) {
+              bestSlack = slack;
+              best = st;
+            }
+          });
+          if (best) {
+            best.inners.push(pot);
+            best.inner = best.inners[0];
+            best.nested = true;
+            nested += 1;
+            var hostH = potPack(best.outer).h;
+            best.h = Math.max(best.h, hostH + Math.max(0, op.h - hostH * 0.82));
+            return;
+          }
+          stacks.push({
+            d: op.d,
+            h: op.h,
+            outer: pot,
+            inner: null,
+            inners: [],
+            nested: false,
+            pack: isSet(pot) ? "set" : "mix"
+          });
+        });
+        return { stacks: stacks, nested: nested };
+      }
+      function clonePot(src, qty) {
+        return {
+          id: src.id, name: src.name, belly: src.belly, rim: src.rim, base: src.base,
+          h: src.h, qty: qty, pack: src.pack || "mix", on: true,
+          dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect
+        };
+      }
+      function palletRecipe(list, nWant) {
+        nWant = Math.max(1, nWant | 0);
+        var nSku = list.length;
+        if (!nSku) return { units: 0, rows: [], split: [] };
+        var counts = list.map(function () { return 0; });
+        var used = 0;
+        for (var i = 0; i < nSku && used < nWant; i++) {
+          counts[i] = 1;
+          used += 1;
+        }
+        var extra = nWant - used;
+        if (extra > 0) {
+          var sizes = list.map(function (p, i) { return { i: i, belly: Number(p.belly) || 0 }; });
+          sizes.sort(function (a, b) { return a.belly - b.belly; });
+          var i = 0;
+          while (extra > 0) {
+            counts[sizes[i % sizes.length].i] += 1;
+            extra -= 1;
+            i += 1;
+          }
+        }
+        var rows = list.map(function (p, i) { return clonePot(p, counts[i]); }).filter(function (r) { return r.qty > 0; });
+        var units = rows.reduce(function (a, r) { return a + r.qty; }, 0);
+        return { units: units, rows: rows, split: rows.map(function (r) { return r.name + " × " + r.qty; }) };
+      }
+      function packPlane(stacks, innerL, innerW) {
+        var list = stacks.slice().sort(function (a, b) { return b.d - a.d; });
+        var placed = [];
+        var used = [];
+        var y = 0;
+        var i = 0;
+        while (i < list.length) {
+          var rowH = 0;
+          var x = 0;
+          var rowStart = i;
+          while (i < list.length) {
+            var s = list[i];
+            if (used[i]) { i++; continue; }
+            if (x > 0 && x + s.d > innerL + 1e-6) break;
+            if (s.d > innerL + 1e-6 || s.d > innerW + 1e-6) { i++; continue; }
+            if (y + s.d > innerW + 1e-6) { i = list.length; break; }
+            placed.push({ stack: s, x: x + s.d / 2, y: y + s.d / 2 });
+            used[i] = true;
+            x += s.d;
+            if (s.d > rowH) rowH = s.d;
+            i++;
+          }
+          if (i === rowStart) break;
+          y += rowH;
+        }
+        function overlaps(px, py, d) {
+          for (var p = 0; p < placed.length; p++) {
+            var pl = placed[p];
+            var dx = pl.x - px, dy = pl.y - py;
+            var min = (pl.stack.d + d) / 2;
+            if (dx * dx + dy * dy < min * min - 0.25) return true;
+          }
+          return false;
+        }
+        for (var k = 0; k < list.length; k++) {
+          if (used[k]) continue;
+          var s2 = list[k];
+          var r = s2.d / 2;
+          if (s2.d > innerL + 1e-6 || s2.d > innerW + 1e-6) continue;
+          var found = false;
+          var step = Math.max(1.2, Math.min(3, r * 0.45));
+          for (var gy = r; gy + r <= innerW + 1e-6 && !found; gy += step) {
+            for (var gx = r; gx + r <= innerL + 1e-6; gx += step) {
+              if (!overlaps(gx, gy, s2.d)) {
+                placed.push({ stack: s2, x: gx, y: gy });
+                used[k] = true;
+                found = true;
+                break;
+              }
+            }
+          }
+        }
+        var usedL = 0, usedW = 0, leftover = 0;
+        placed.forEach(function (pl) {
+          usedL = Math.max(usedL, pl.x + pl.stack.d / 2);
+          usedW = Math.max(usedW, pl.y + pl.stack.d / 2);
+        });
+        for (var u = 0; u < list.length; u++) if (!used[u]) leftover += 1;
+        return { placed: placed, usedL: usedL, usedW: usedW, leftover: leftover };
+      }
+      function packOnSize(stacks, L, W) {
+        var a = packPlane(stacks, L, W);
+        var b = packPlane(stacks, W, L);
+        if (b.placed.length > a.placed.length) return { plane: b, L: W, W: L };
+        if (b.placed.length === a.placed.length && b.leftover < a.leftover) return { plane: b, L: W, W: L };
+        return { plane: a, L: L, W: W };
+      }
+      function rankPallet(a, b) {
+        var a2 = twoAcrossScore(a.L, a.W) >= 2 ? 1 : 0;
+        var b2 = twoAcrossScore(b.L, b.W) >= 2 ? 1 : 0;
+        if (b2 !== a2) return b2 - a2;
+        var af = a.name.indexOf("factory") >= 0 ? 1 : 0;
+        var bf = b.name.indexOf("factory") >= 0 ? 1 : 0;
+        if (bf !== af) return bf - af;
+        return a.area - b.area;
+      }
+      function palMode() {
+        return document.getElementById("palSize").value === "custom" ? "custom" : "auto";
+      }
+      function customPal() {
+        return {
+          L: Math.max(20, parseFloat(document.getElementById("palL").value) || 101),
+          W: Math.max(20, parseFloat(document.getElementById("palW").value) || 65),
+          H: Math.max(20, parseFloat(document.getElementById("palBoxH").value) || 65),
+          name: "customer"
+        };
+      }
+      function crateInnerH(boxH) {
+        return Math.max(8, (Number(boxH) || FACTORY_CRATE.H) - DECK_CM);
+      }
+      function packVolume(stacks, L, W, innerH) {
+        var remain = stacks.slice().sort(function (a, b) { return b.d - a.d || b.h - a.h; });
+        var columns = [];
+        remain.forEach(function (s) {
+          var placed = false;
+          for (var c = 0; c < columns.length; c++) {
+            var col = columns[c];
+            if (s.d > col.d + 1e-6) continue;
+            var addH = s.h * 0.62;
+            if (col.h + addH > innerH + 1e-6) continue;
+            col.items.push(s);
+            col.h += addH;
+            placed = true;
+            break;
+          }
+          if (!placed) columns.push({ d: s.d, h: s.h, items: [s] });
+        });
+        var planeStacks = columns.map(function (col) {
+          return { d: col.d, h: col.h, items: col.items, outer: col.items[0].outer, inner: col.items[0].inner, pack: col.items[0].pack };
+        });
+        var hit = packOnSize(planeStacks, L, W);
+        var leftoverCols = Math.max(0, planeStacks.length - hit.plane.placed.length);
+        var leftoverPcs = leftoverCols;
+        if (leftoverCols) leftoverPcs = leftoverCols;
+        return {
+          L: hit.L, W: hit.W,
+          plane: hit.plane,
+          columns: columns,
+          leftover: leftoverCols,
+          placedCols: hit.plane.placed.length,
+          levels: columns.reduce(function (m, c) { return Math.max(m, c.items.length); }, 1)
+        };
+      }
+      function countOnVolume(plane) {
+        var map = {};
+        (plane.placed || []).forEach(function (pl) {
+          var items = (pl.stack && pl.stack.items) || [pl.stack];
+          items.forEach(function (s) {
+            if (!s) return;
+            if (s.outer) map[s.outer.id] = (map[s.outer.id] || 0) + 1;
+            if (s.inners && s.inners.length) {
+              s.inners.forEach(function (inn) {
+                if (inn && inn.id) map[inn.id] = (map[inn.id] || 0) + 1;
+              });
+            } else if (s.inner) map[s.inner.id] = (map[s.inner.id] || 0) + 1;
+            if (!s.outer && !s.inner && s.items) {
+              s.items.forEach(function (x) {
+                if (x.outer) map[x.outer.id] = (map[x.outer.id] || 0) + 1;
+                if (x.inners && x.inners.length) {
+                  x.inners.forEach(function (inn) {
+                    if (inn && inn.id) map[inn.id] = (map[inn.id] || 0) + 1;
+                  });
+                } else if (x.inner) map[x.inner.id] = (map[x.inner.id] || 0) + 1;
+              });
+            }
+          });
+        });
+        return map;
+      }
+      function fitPallet(stacks, boxH) {
+        var size;
+        if (palMode() === "custom") {
+          var c = customPal();
+          size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
+        } else {
+          size = { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: FACTORY_CRATE.name };
+        }
+        var innerH = crateInnerH(size.H);
+        var vol = packVolume(stacks, size.L, size.W, innerH);
+        return {
+          L: vol.L, W: vol.W, H: size.H, name: size.name,
+          area: size.L * size.W, plane: vol.plane, leftover: vol.leftover,
+          placed: vol.placedCols, levels: vol.levels, innerH: innerH, boxH: size.H
+        };
+      }
+      function crateOuter(pal) {
+        var L = Number(pal.L) || FACTORY_CRATE.L;
+        var W = Number(pal.W) || FACTORY_CRATE.W;
+        var boxH = Number(pal.boxH || pal.H) || FACTORY_CRATE.H;
+        return {
+          L: L / 100,
+          W: W / 100,
+          H: boxH / 100,
+          innerL: L,
+          innerW: W,
+          innerH: crateInnerH(boxH) / 100,
+          deck: DECK_CM / 100,
+          wood: WOOD_CM / 100
+        };
+      }
+      function palletsInCont(cont, crate) {
+        var gap = BOARD_CM / 100;
+        function layout(cL, cW, rot) {
+          var nx = Math.max(0, Math.floor((cont.L + 1e-9) / (cL + gap)));
+          var ny = Math.max(0, Math.floor((cont.W + 1e-9) / (cW + gap)));
+          var nz = Math.max(0, Math.floor((cont.H + 1e-9) / (crate.H + gap)));
+          if (crate.H <= 0.70 && nz > 2) nz = 2;
+          if (ny > 2) ny = 2;
+          return { nx: nx, ny: ny, nz: nz, n: nx * ny * Math.max(nz, 0), cL: cL, cW: cW, rot: rot };
+        }
+        var a = layout(crate.L, crate.W, false);
+        var b = layout(crate.W, crate.L, true);
+        var factory = Math.abs(crate.L * 100 - 101) < 2 && Math.abs(crate.W * 100 - 65) < 2;
+        if (factory && a.ny >= 2) return a;
+        if (a.n === 44) return a;
+        if (b.n === 44) return b;
+        if (b.n > a.n && b.ny >= 2) return b;
+        if (b.n === a.n && b.ny >= 2 && a.ny < 2) return b;
+        return a;
+      }
+      function runMix() {
+        var list = enabledPots();
+        if (!list.length) {
+          mixPlan = null;
+          toast("Add a pottery item first");
+          return;
+        }
+        var nWant = Math.max(1, parseInt(document.getElementById("mixOnPal").value, 10) || 1);
+        var recipe = palletRecipe(list, nWant);
+        if (!recipe.units) {
+          mixPlan = null;
+          toast("No items to pack");
+          return;
+        }
+        var nested = nestStacks(recipe.rows);
+        if (!nested.stacks.length) {
+          mixPlan = null;
+          toast("No stacks to pack");
+          return;
+        }
+        var pal = fitPallet(nested.stacks);
+        if (palMode() === "auto") {
+          document.getElementById("palL").value = pal.L;
+          document.getElementById("palW").value = pal.W;
+          document.getElementById("palBoxH").value = pal.H;
+        }
+        var crate = crateOuter(pal);
+        var plane = pal.plane;
+        var per = pal.placed;
+        var perItem = countOnVolume(plane);
+        var packedPcs = 0;
+        Object.keys(perItem).forEach(function (id) { packedPcs += perItem[id]; });
+        var missing = list.filter(function (p) { return !perItem[p.id]; }).map(function (p) { return p.name; });
+        mixView = "pallet";
+        mixPlan = {
+          pal: pal, crate: crate, nested: nested, plane: plane,
+          per: packedPcs || per, leftoverStacks: pal.leftover,
+          nWant: nWant, recipe: recipe, perItem: perItem, levels: pal.levels
+        };
+        paintMixCards();
+        paintMixBreak();
+        document.getElementById("mixPer").textContent = recipe.split.join(" + ") + "  =  " + packedPcs + " pcs packed (cap " + nWant + ")";
+        document.getElementById("mixNeed").textContent = recipe.split.join(" · ");
+        var across = twoAcrossScore(pal.L, pal.W);
+        var acrossTxt = across >= 2 ? across + " pallets across 2.35 m" : "only 1 across 2.35 m";
+        var highTxt = pal.levels > 1 ? pal.levels + " high inside crate" : "1 layer";
+        document.getElementById("mixOuter").textContent = pal.L + " × " + pal.W + " × " + pal.H + " cm  ·  " + acrossTxt + "  ·  " + highTxt;
+        document.getElementById("mixNest").textContent = nested.nested + " nested · " + pal.levels + " stack high";
+        var fit20 = palletsInCont(CONTAINERS[0], crate);
+        var fit40 = palletsInCont(CONTAINERS[1], crate);
+        var fitHC = palletsInCont(CONTAINERS[2], crate);
+        document.getElementById("mixProposeSize").textContent = pal.L + " × " + pal.W + " × " + pal.H + " cm";
+        document.getElementById("mixProposeWhy").textContent =
+          (palMode() === "auto" ? "Factory crate: " : "Customer crate: ") +
+          pal.L + " × " + pal.W + " × " + pal.H + " cm · " + acrossTxt + " · 2-high in box. " +
+          "Fill: " + fit20.n + " PLT 20'GP · " + fit40.n + " PLT 40'GP (factory 44) · " + fitHC.n + " PLT 40HC.";
+        var el = document.getElementById("mixVerdict");
+        var short = packedPcs < nWant;
+        if (!per) {
+          el.className = "verdict nogo";
+          document.getElementById("mixStamp").textContent = "NO-GO";
+          document.getElementById("mixWhy").textContent = nWant + " items do not fit 101×65×65. Drop mix count or type a bigger crate.";
+        } else if (pal.leftover || short || missing.length) {
+          el.className = "verdict hold";
+          document.getElementById("mixStamp").textContent = "HOLD";
+          document.getElementById("mixWhy").textContent = "Cap " + nWant + ". Packed " + packedPcs + " · " + recipe.split.join(" + ") + " on " + pal.L + "×" + pal.W + "×" + pal.H + ". " + (missing.length ? "Missing: " + missing.join(", ") + ". " : "") + highTxt + ".";
+        } else {
+          el.className = "verdict go";
+          document.getElementById("mixStamp").textContent = "GO";
+          document.getElementById("mixWhy").textContent = nWant + " pcs on 1 crate " + pal.L + "×" + pal.W + "×" + pal.H + " · nest + stack " + highTxt + " · " + acrossTxt + " · " + fit40.n + " PLT on 40'GP.";
+        }
+        rebuildMix();
+      }
+      function paintMixBreak() {
+        var host = document.getElementById("mixBreak");
+        host.innerHTML = "";
+        if (!mixPlan || !mixPlan.per) {
+          host.innerHTML = "<tr><td colspan='5'>Pack 1 pallet first</td></tr>";
+          return;
+        }
+        var list = enabledPots();
+        var tot = [0, 0, 0, 0];
+        list.forEach(function (p) {
+          var n1 = mixPlan.perItem[p.id] || 0;
+          var unit = isSet(p) ? " set" : " pc";
+          var tr = document.createElement("tr");
+          var nums = [n1];
+          var cells = CONTAINERS.map(function (c) {
+            var fit = palletsInCont(c, mixPlan.crate);
+            nums.push(n1 * fit.n);
+            return "<td class='num'>" + (n1 * fit.n) + unit + "</td>";
+          });
+          tot[0] += n1; tot[1] += nums[1]; tot[2] += nums[2]; tot[3] += nums[3];
+          tr.innerHTML = "<td>" + p.name + "</td><td class='num'>" + n1 + unit + "</td>" + cells.join("");
+          host.appendChild(tr);
+        });
+        var sum = document.createElement("tr");
+        sum.innerHTML = "<td><b>Mix total</b></td><td class='num'><b>" + tot[0] + "</b></td><td class='num'><b>" + tot[1] + "</b></td><td class='num'><b>" + tot[2] + "</b></td><td class='num'><b>" + tot[3] + "</b></td>";
+        host.appendChild(sum);
+      }
+      function paintMixCards() {
+        var host = document.getElementById("mixCards");
+        host.innerHTML = "";
+        CONTAINERS.forEach(function (c) {
+          var fit = mixPlan ? palletsInCont(c, mixPlan.crate) : null;
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "card" + (mixView === "cont" && c.id === mixContId ? " on" : "");
+          var extra = fit
+            ? ("<br>" + fit.n + " pallets · " + fit.nx + "×" + fit.ny + "×" + fit.nz + (fit.ny >= 2 ? " · 2-across" : " · 1 across"))
+            : "<br>Pack pallet first";
+          btn.innerHTML = "<div class='n'>" + c.name + "</div><div class='aka'>" + c.aka + "</div><div class='v'>Internal " + c.L.toFixed(3) + " × " + c.W.toFixed(3) + " × " + c.H.toFixed(3) + " m" + extra + "</div><div class='fit " + (fit && fit.n ? "go" : "") + "'>" + (fit ? fit.n + " PLT" : "—") + "</div>";
+          btn.onclick = function () {
+            mixContId = c.id;
+            mixView = "cont";
+            paintMixCards();
+            rebuildMix();
+          };
+          host.appendChild(btn);
+        });
+      }
+      function potHtml(p) {
+        var wrap = document.createElement("div");
+        wrap.className = "pot";
+        wrap.innerHTML =
+          "<div class='head'>" +
+            "<img class='thumb' alt='' />" +
+            "<input type='text' data-k='name' />" +
+            "<label class='tiny' style='display:flex;gap:4px;align-items:center;'><input type='checkbox' data-k='on' /> on</label>" +
+            "<div class='sku-tools'><button type='button' class='plus'>+</button><button type='button' class='x'>×</button></div>" +
+          "</div>" +
+          "<div class='row'>" +
+            "<label class='field'><span>Belly D cm</span><input type='number' step='0.1' min='0.1' data-k='belly' /></label>" +
+            "<label class='field'><span>Rim D cm</span><input type='number' step='0.1' min='0' data-k='rim' /></label>" +
+            "<label class='field'><span>Base D cm</span><input type='number' step='0.1' min='0' data-k='base' /></label>" +
+          "</div>" +
+          "<div class='qty-row'>" +
+            "<label class='field'><span>H cm</span><input type='number' step='0.1' min='0.1' data-k='h' /></label>" +
+            "<label class='field'><span>Pack</span>" +
+              "<div class='pack-toggle' data-k='pack'>" +
+                "<button type='button' class='chip' data-pack='mix'>Mix</button>" +
+                "<button type='button' class='chip' data-pack='set'>Set</button>" +
+              "</div>" +
+            "</label>" +
+          "</div>" +
+          "<p class='set-note hint' style='display:none;margin:-2px 0 8px;'>Set = already nested pack (3 pcs). Belly / H = outer. Do not put other items inside. Mix count at the top is the pallet cap.</p>" +
+          "<label class='drop'>Drop photo or tap<input type='file' accept='image/*' /></label>";
+        wrap.querySelector("[data-k=name]").value = p.name;
+        wrap.querySelector("[data-k=belly]").value = p.belly;
+        wrap.querySelector("[data-k=rim]").value = p.rim;
+        wrap.querySelector("[data-k=base]").value = p.base;
+        wrap.querySelector("[data-k=h]").value = p.h;
+        wrap.querySelector("[data-k=on]").checked = p.on;
+        if (!p.pack) p.pack = "mix";
+        function syncPackUi() {
+          var setOn = isSet(p);
+          wrap.querySelector(".set-note").style.display = setOn ? "block" : "none";
+          wrap.querySelectorAll("[data-pack]").forEach(function (b) {
+            b.classList.toggle("on", b.getAttribute("data-pack") === p.pack);
+          });
+        }
+        wrap.querySelectorAll("[data-pack]").forEach(function (btn) {
+          btn.onclick = function () {
+            p.pack = btn.getAttribute("data-pack");
+            syncPackUi();
+          };
+        });
+        syncPackUi();
+        var thumb = wrap.querySelector(".thumb");
+        thumb.src = p.dataUrl || "";
+        if (p.dataUrl) {
+          wrap.querySelector(".drop").classList.add("has");
+          wrap.querySelector(".drop").childNodes[0].textContent = "Photo on · tap to change";
+        }
+        wrap.querySelector(".x").onclick = function () {
+          if (pots.length < 2) return;
+          pots = pots.filter(function (x) { return x.id !== p.id; });
+          paintPots();
+        };
+        wrap.querySelector(".plus").onclick = addPot;
+        wrap.querySelectorAll("input").forEach(function (el) {
+          el.addEventListener("change", function () {
+            var k = el.getAttribute("data-k");
+            if (!k) return;
+            if (k === "on") p.on = el.checked;
+            else if (k === "name") p.name = el.value;
+            else p[k] = parseFloat(el.value) || 0;
+          });
+        });
+        var dropEl = wrap.querySelector(".drop");
+        function onPotImg(im) { applyPhoto(im, p, thumb, dropEl, "Photo on · drop to change"); }
+        wirePhotoDrop(dropEl, onPotImg);
+        wirePhotoDrop(wrap, onPotImg);
+        return wrap;
+      }
+      function paintPots() {
+        var host = document.getElementById("pots");
+        host.innerHTML = "";
+        pots.forEach(function (p) { host.appendChild(potHtml(p)); });
+      }
+      function addPot() {
+        potUid += 1;
+        pots.push({ id: "p" + potUid, name: "Pot " + potUid, belly: 20, rim: 18, base: 12, h: 20, qty: 12, pack: "mix", on: true, dataUrl: null, map: null });
+        paintPots();
+      }
+      function woodMat(hex) {
+        return new THREE.MeshStandardMaterial({ color: hex || 0xc4a06a, roughness: 0.88, metalness: 0.02 });
+      }
+      function potMat(pot, fallback, cut) {
+        var tex = pot && (cut && pot.cutTex ? pot.cutTex : pot.map);
+        if (tex) {
+          return new THREE.MeshStandardMaterial({
+            map: tex,
+            roughness: 0.62,
+            metalness: 0.04,
+            transparent: !!cut,
+            alphaTest: cut ? 0.12 : 0,
+            side: cut ? THREE.DoubleSide : THREE.FrontSide
+          });
+        }
+        return new THREE.MeshStandardMaterial({ color: fallback || 0xc4a574, roughness: 0.7 });
+      }
+      function drawPotMesh(pot, dM, hM, asCut) {
+        if ((asCut || looksLikeFigure(pot)) && pot && (pot.cutTex || pot.map)) {
+          var g = new THREE.Group();
+          var mat = potMat(pot, 0xd8c4a0, true);
+          var plane = new THREE.Mesh(new THREE.PlaneGeometry(Math.max(dM, 0.04), Math.max(hM, 0.04)), mat);
+          plane.position.y = hM / 2;
+          plane.castShadow = true;
+          g.add(plane);
+          var plane2 = plane.clone();
+          plane2.rotation.y = Math.PI / 2;
+          g.add(plane2);
+          return g;
+        }
+        var r = dM / 2;
+        var pts = [
+          new THREE.Vector2(r * 0.42, 0),
+          new THREE.Vector2(r * 0.78, hM * 0.18),
+          new THREE.Vector2(r * 1.00, hM * 0.48),
+          new THREE.Vector2(r * 0.90, hM * 0.92),
+          new THREE.Vector2(r * 0.86, hM),
+          new THREE.Vector2(r * 0.78, hM * 0.98),
+          new THREE.Vector2(r * 0.70, hM * 0.50),
+          new THREE.Vector2(r * 0.32, hM * 0.10),
+          new THREE.Vector2(0.004, 0.004)
+        ];
+        var geo = new THREE.LatheGeometry(pts, 28);
+        var m = new THREE.Mesh(geo, potMat(pot, 0xd8c4a0, false));
+        m.castShadow = true;
+        m.receiveShadow = true;
+        return m;
+      }
+      function drawPalletDeck(crate) {
+        var g = new THREE.Group();
+        var L = crate.L, W = crate.W, H = crate.deck;
+        var stringer = woodMat(0x8a6230);
+        var board = woodMat(0xd2b48c);
+        var nStr = 3;
+        for (var i = 0; i < nStr; i++) {
+          var z = -W / 2 + (W / (nStr - 1)) * i;
+          var s = boxMesh(L, H * 0.72, Math.min(0.09, W * 0.12), stringer);
+          s.position.set(L / 2, H * 0.36, z);
+          g.add(s);
+        }
+        var nBoard = Math.max(5, Math.round(L / 0.11));
+        var bw = Math.max(0.06, L / nBoard - 0.012);
+        for (var b = 0; b < nBoard; b++) {
+          var x = (b + 0.5) * (L / nBoard);
+          var slat = boxMesh(bw, H * 0.28, W, board);
+          slat.position.set(x, H * 0.72 + H * 0.14, 0);
+          g.add(slat);
+        }
+        return g;
+      }
+      function drawCrateFrame(crate) {
+        var g = new THREE.Group();
+        var t = Math.max(crate.wood, 0.025);
+        var postH = crate.H;
+        var post = woodMat(0xb08958);
+        [[0, crate.W / 2], [0, -crate.W / 2], [crate.L, crate.W / 2], [crate.L, -crate.W / 2]].forEach(function (p) {
+          var m = boxMesh(t, postH, t, post);
+          m.position.set(p[0] === 0 ? t / 2 : crate.L - t / 2, postH / 2, p[1] > 0 ? crate.W / 2 - t / 2 : -crate.W / 2 + t / 2);
+          g.add(m);
+        });
+        var rail = boxMesh(crate.L, t * 0.7, t * 0.7, post);
+        [[crate.W / 2 - t / 2], [-crate.W / 2 + t / 2]].forEach(function (side) {
+          var low = rail.clone();
+          low.position.set(crate.L / 2, crate.deck + t, side[0]);
+          g.add(low);
+          var mid = rail.clone();
+          mid.position.set(crate.L / 2, crate.H * 0.55, side[0]);
+          g.add(mid);
+        });
+        var brace = boxMesh(Math.sqrt(crate.L * crate.L + crate.H * crate.H) * 0.92, t * 0.45, t * 0.45, woodMat(0x9a7040));
+        brace.position.set(crate.L / 2, crate.H * 0.48, crate.W / 2 - t);
+        brace.rotation.z = -Math.atan2(crate.H, crate.L);
+        g.add(brace);
+        var brace2 = brace.clone();
+        brace2.position.z = -crate.W / 2 + t;
+        g.add(brace2);
+        return g;
+      }
+      function drawOneCrate(crate, plane, ox, oy, oz) {
+        var g = new THREE.Group();
+        g.add(drawPalletDeck(crate));
+        g.add(drawCrateFrame(crate));
+        plane.placed.forEach(function (pl) {
+          var col = pl.stack;
+          var items = col.items && col.items.length ? col.items : [col];
+          var cx = crate.wood + pl.x / 100;
+          var cz = -crate.W / 2 + crate.wood + pl.y / 100;
+          var y0 = crate.deck;
+          function addPotAt(pot, d, h, lift, asCut, ox, oz) {
+            var mesh = drawPotMesh(pot, d, h, asCut);
+            mesh.position.set(cx + (ox || 0), y0 + lift, cz + (oz || 0));
+            g.add(mesh);
+          }
+          function drawStack(s, base) {
+            var dM = s.d / 100;
+            var hM = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
+            if (s.pack === "set") {
+              addPotAt(s.outer, dM, hM, base);
+              addPotAt(s.outer, dM * 0.76, hM * 0.78, base + hM * 0.16);
+              addPotAt(s.outer, dM * 0.54, hM * 0.55, base + hM * 0.30);
+              return hM;
+            }
+            var nestList = (s.inners && s.inners.length) ? s.inners : (s.inner ? [s.inner] : []);
+            var outerFig = looksLikeFigure(s.outer);
+            if (outerFig) {
+              addPotAt(s.outer, dM, hM, base, true);
+              return hM;
+            }
+            if (nestList.length) {
+              addPotAt(s.outer, dM, hM, base, false);
+              var nIn = nestList.length;
+              nestList.forEach(function (inn, n) {
+                var fig = looksLikeFigure(inn);
+                var idM = (fig ? Math.min(nestFoot(inn), (Number(s.outer.belly) || s.d) * 0.42) : potPack(inn).d) / 100;
+                var ihM = fig
+                  ? Math.min(potPack(inn).h / 100, hM * 0.52)
+                  : potPack(inn).h / 100;
+                var liftIn = base + (fig ? hM * 0.05 : Math.max(hM * 0.18, hM * 0.36 - ihM * 0.12) + n * Math.max(0.012, ihM * 0.1));
+                var ox = 0, oz = 0;
+                if (nIn > 1 || fig) {
+                  var ang = (n / Math.max(nIn, 1)) * Math.PI * 2 + (fig ? 0.4 : 0);
+                  var spread = Math.max(0, (dM - idM) * (fig ? 0.18 : 0.28));
+                  ox = Math.cos(ang) * spread;
+                  oz = Math.sin(ang) * spread;
+                }
+                addPotAt(inn, idM, ihM, liftIn, fig || !!inn.cutTex, ox, oz);
+              });
+              return hM;
+            }
+            addPotAt(s.outer, dM, hM, base, false);
+            return hM;
+          }
+          var lift = 0;
+          items.forEach(function (s, i) {
+            var used = drawStack(s, lift);
+            lift += i === 0 ? used : used * 0.62;
+          });
+        });
+        g.position.set(ox, oy, oz);
+        root.add(g);
+      }
+      function rebuildMix() {
+        while (root.children.length) {
+          var ch = root.children.pop();
+          ch.traverse(function (o) { if (o.geometry) o.geometry.dispose(); });
+        }
+        var cont = contById(mixContId);
+        drawShell(cont);
+        if (!mixPlan || !mixPlan.per) return;
+        var crate = mixPlan.crate;
+        if (mixView !== "cont") {
+          var ox = cont.L + 0.95;
+          drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
+          var lab = makeLabel("PALLET OUT  " + mixPlan.pal.L + "x" + mixPlan.pal.W + "x" + mixPlan.pal.H + "  " + (mixPlan.levels || 1) + " high  " + mixPlan.per + " pcs");
+          lab.position.set(ox + crate.L / 2, crate.H + 0.42, 0);
+          root.add(lab);
+          return;
+        }
+        var fit = palletsInCont(cont, crate);
+        var gap = BOARD_CM / 100;
+        var cL = fit.cL || crate.L;
+        var cW = fit.cW || crate.W;
+        var shown = 0;
+        var want = Math.min(fit.n, 24);
+        for (var iz = 0; iz < fit.nz; iz++) {
+          for (var ix = 0; ix < fit.nx; ix++) {
+            for (var iy = 0; iy < fit.ny; iy++) {
+              if (shown >= want) return;
+              var px = ix * (cL + gap);
+              var py = iz * (crate.H + gap);
+              var pz = -cont.W / 2 + cW / 2 + iy * (cW + gap);
+              if (shown === 0) {
+                if (fit.rot) {
+                  var g0 = root.children.length;
+                  drawOneCrate(crate, mixPlan.plane, 0, 0, 0);
+                  var crateG = root.children[g0];
+                  crateG.rotation.y = Math.PI / 2;
+                  crateG.position.set(px + crate.W / 2, py, pz + crate.L / 2);
+                } else {
+                  drawOneCrate(crate, mixPlan.plane, px, py, pz);
+                }
+              } else {
+                var box = boxMesh(cL * 0.98, crate.H * 0.98, cW * 0.98, woodMat());
+                box.position.set(px + cL / 2, py + crate.H / 2, pz);
+                root.add(box);
+              }
+              shown++;
+            }
+          }
+        }
+      }
+      function setMode(mode) {
+        appMode = mode;
+        var mix = mode === "mix";
+        document.getElementById("cartonPanel").classList.toggle("mode-off", mix);
+        document.getElementById("mixPanel").classList.toggle("mode-off", !mix);
+        document.getElementById("tabCarton").classList.toggle("on", !mix);
+        document.getElementById("tabMix").classList.toggle("on", mix);
+        document.getElementById("appTitle").classList.toggle("on", !mix);
+        document.getElementById("mixHead").classList.toggle("on", mix);
+        document.getElementById("kicker").textContent = mix
+          ? "Customer mix on 1 pallet · then load the box"
+          : "Load planner · internal (inside) dims, not exterior";
+        if (mix) {
+          paintPots();
+          paintMixCards();
+          paintMixBreak();
+          if (mixPlan) rebuildMix();
+          else {
+            while (root.children.length) root.children.pop();
+            drawShell(contById(mixContId));
+          }
+        } else rebuild();
+        setCam("iso");
+      }
+      document.getElementById("tabCarton").onclick = function () { setMode("carton"); };
+      document.getElementById("tabMix").onclick = function () { setMode("mix"); };
+      document.getElementById("appTitle").onclick = function () { setMode("carton"); };
+      document.getElementById("mixHead").onclick = function () { setMode("mix"); };
+      function setPalMode(mode) {
+        document.getElementById("palSize").value = mode === "custom" ? "custom" : "auto";
+        document.getElementById("palCustom").classList.toggle("off", mode !== "custom");
+        document.querySelectorAll("#palMode [data-pal]").forEach(function (b) {
+          b.classList.toggle("on", b.getAttribute("data-pal") === mode);
+        });
+      }
+      document.querySelectorAll("#palMode [data-pal]").forEach(function (b) {
+        b.onclick = function () { setPalMode(b.getAttribute("data-pal")); };
+      });
+      setPalMode("auto");
+      document.getElementById("startMix").onclick = runMix;
+      function syncMixBtn() {
+        var n = Math.max(1, parseInt(document.getElementById("mixOnPal").value, 10) || 16);
+        document.getElementById("startMix").textContent = "Pack " + n + " on 1 pallet";
+      }
+      document.getElementById("mixOnPal").addEventListener("input", syncMixBtn);
+      document.getElementById("mixOnPal").addEventListener("change", syncMixBtn);
+      syncMixBtn();
+      document.getElementById("showPalOut").onclick = function () {
+        if (!mixPlan) { toast("Pack 1 pallet first"); return; }
+        mixView = "pallet";
+        paintMixCards();
+        rebuildMix();
+      };
+
+      ["dragover", "drop"].forEach(function (name) {
+        window.addEventListener(name, function (e) {
+          if (e.dataTransfer && e.dataTransfer.types && Array.prototype.indexOf.call(e.dataTransfer.types, "Files") >= 0) {
+            e.preventDefault();
+          }
+        });
+      });
       window.addEventListener("resize", resize);
       paintSkus();
       paintCards();
+      paintPots();
+      paintMixCards();
+      paintMixBreak();
       resize();
       setCam("iso");
       rebuild();
