@@ -167,7 +167,7 @@
     .rule { font-size: 10px; color: #9a907e; line-height: 1.4; margin: 0 0 8px; }
     .pot { border: 1px solid var(--line); padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,.03); }
     .pot .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-    .qty-row { display: grid; grid-template-columns: 1fr 1.6fr; gap: 8px; align-items: end; margin-bottom: 8px; }
+    .qty-row { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 8px; align-items: end; margin-bottom: 8px; }
     .pack-toggle { display: flex; gap: 4px; }
     .pack-toggle .chip { flex: 1; text-align: center; padding: 8px 6px; min-height: 36px; }
     .mix-hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; align-items: end; margin: 0 0 10px; }
@@ -251,7 +251,6 @@
     <div class="kicker" id="kicker">Load planner · internal (inside) dims, not exterior</div>
     <div class="title-row">
       <h1 id="appTitle" class="on">Container Loading</h1>
-      <button type="button" class="mix-head" id="mixHead">Mix Loading</button>
       <button type="button" class="sheet-toggle" id="sheetToggle">3D</button>
     </div>
     <div class="tabs">
@@ -362,8 +361,12 @@
       <p class="hint" style="margin:-4px 0 8px;">Factory crate <b>101 × 65 × 65</b> — 2 sit across 2.35 m, 2-high in the box (~44 on 40'GP). Mix 16 nest + stack inside that 65 cm. Auto uses this. Customer size = you type L × W × H.</p>
 
       <div class="step"><i>2</i> Items in the mix</div>
-      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Tool splits the ratio so every item is present. Mix = can nest. Set = already 3-in-1, do not put others inside.</p>
+      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Qty = mix ratio (24 + 24 → 8 + 8 on a 16 mix). Every item is present. Mix = can nest. Set = already 3-in-1, do not put other items inside.</p>
       <div id="pots"></div>
+      <div class="add-row">
+        <button type="button" class="plus" id="addPot" title="Add item">+</button>
+        <button type="button" class="ghost" id="addPot2">+ Add item</button>
+      </div>
 
       <div class="step"><i>3</i> Pack that pallet</div>
       <button type="button" class="start" id="startMix">Pack 16 on 1 pallet</button>
@@ -394,6 +397,12 @@
         <thead><tr><th>Item</th><th class="num">1 pallet</th><th class="num">20'GP</th><th class="num">40'GP</th><th class="num">40HC</th></tr></thead>
         <tbody id="mixBreak"></tbody>
       </table>
+      <div class="acts">
+        <button type="button" class="ghost" id="copyMix">Copy mix plan</button>
+        <button type="button" class="ghost" id="shotMix">Save 3D PNG</button>
+        <button type="button" class="ghost" id="saveMix">Save this mix</button>
+        <button type="button" class="ghost" id="loadMix">Load last mix</button>
+      </div>
     </div>
   </aside>
   <div class="toast" id="toast"></div>
@@ -403,6 +412,7 @@
     <button type="button" class="cam" id="camTop">Top</button>
     <button type="button" class="cam" id="camSide">Side</button>
     <button type="button" class="cam" id="camNose">Nose</button>
+    <button type="button" class="cam" id="camUnder">Under</button>
   </div>
   <div class="foot">
     <span>Drag orbit · scroll zoom · OD as given, bulge unverified</span>
@@ -442,7 +452,7 @@
       var controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.06;
-      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.maxPolarAngle = Math.PI;
       controls.minDistance = 3;
       controls.maxDistance = 42;
 
@@ -1263,14 +1273,20 @@
       }
 
       function setCam(kind) {
-        var cont = contById(selectedId);
+        var id = appMode === "mix" ? mixContId : selectedId;
+        var cont = contById(id);
         var cx = cont.L / 2, cz = 0, cy = cont.H / 2;
-        controls.target.set(cx, cy * 0.55, cz);
+        if (appMode === "mix" && mixView !== "cont") {
+          cx = cont.L + 0.95 + ((mixPlan && mixPlan.crate) ? mixPlan.crate.L / 2 : 0.5);
+          cy = 0.4;
+        }
+        controls.target.set(cx, Math.max(0.2, cy * 0.55), cz);
         if (kind === "iso") camera.position.set(cx + Math.max(8, cont.L * 0.55), 7.4, 9.2);
         if (kind === "door") camera.position.set(cont.L + 9.5, 3.1, 0.15);
         if (kind === "top") camera.position.set(cx, 16.5, 0.01);
         if (kind === "side") camera.position.set(cx, 3.4, 12.5);
         if (kind === "nose") camera.position.set(-8.5, 3.2, 0.2);
+        if (kind === "under") camera.position.set(cx + 2.2, -6.8, 8.4);
         controls.update();
       }
 
@@ -1373,6 +1389,7 @@
       document.getElementById("camTop").onclick = function () { setCam("top"); };
       document.getElementById("camSide").onclick = function () { setCam("side"); };
       document.getElementById("camNose").onclick = function () { setCam("nose"); };
+      document.getElementById("camUnder").onclick = function () { setCam("under"); };
       document.getElementById("rotDefault").onchange = function () {
         var v = this.value;
         skus.forEach(function (s) { s.rot = v; });
@@ -1535,6 +1552,8 @@
         nWant = Math.max(1, nWant | 0);
         var nSku = list.length;
         if (!nSku) return { units: 0, rows: [], split: [] };
+        var weights = list.map(function (p) { return Math.max(1, p.qty | 0); });
+        var sumW = weights.reduce(function (a, w) { return a + w; }, 0);
         var counts = list.map(function () { return 0; });
         var used = 0;
         for (var i = 0; i < nSku && used < nWant; i++) {
@@ -1542,15 +1561,15 @@
           used += 1;
         }
         var extra = nWant - used;
-        if (extra > 0) {
-          var sizes = list.map(function (p, i) { return { i: i, belly: Number(p.belly) || 0 }; });
-          sizes.sort(function (a, b) { return a.belly - b.belly; });
-          var i = 0;
-          while (extra > 0) {
-            counts[sizes[i % sizes.length].i] += 1;
-            extra -= 1;
-            i += 1;
-          }
+        if (extra > 0 && sumW > 0) {
+          var raw = weights.map(function (w) { return extra * w / sumW; });
+          var add = raw.map(function (x) { return Math.floor(x); });
+          var given = add.reduce(function (a, n) { return a + n; }, 0);
+          var rem = extra - given;
+          var order = raw.map(function (x, i) { return { i: i, frac: x - Math.floor(x) }; })
+            .sort(function (a, b) { return b.frac - a.frac; });
+          for (var r = 0; r < rem; r++) add[order[r % order.length].i] += 1;
+          for (var j = 0; j < nSku; j++) counts[j] += add[j];
         }
         var rows = list.map(function (p, i) { return clonePot(p, counts[i]); }).filter(function (r) { return r.qty > 0; });
         var units = rows.reduce(function (a, r) { return a + r.qty; }, 0);
@@ -1894,6 +1913,7 @@
           "</div>" +
           "<div class='qty-row'>" +
             "<label class='field'><span>H cm</span><input type='number' step='0.1' min='0.1' data-k='h' /></label>" +
+            "<label class='field'><span>Qty (ratio)</span><input type='number' step='1' min='1' data-k='qty' /></label>" +
             "<label class='field'><span>Pack</span>" +
               "<div class='pack-toggle' data-k='pack'>" +
                 "<button type='button' class='chip' data-pack='mix'>Mix</button>" +
@@ -1908,6 +1928,7 @@
         wrap.querySelector("[data-k=rim]").value = p.rim;
         wrap.querySelector("[data-k=base]").value = p.base;
         wrap.querySelector("[data-k=h]").value = p.h;
+        wrap.querySelector("[data-k=qty]").value = p.qty || 1;
         wrap.querySelector("[data-k=on]").checked = p.on;
         if (!p.pack) p.pack = "mix";
         function syncPackUi() {
@@ -1942,6 +1963,7 @@
             if (!k) return;
             if (k === "on") p.on = el.checked;
             else if (k === "name") p.name = el.value;
+            else if (k === "qty") p.qty = Math.max(1, parseInt(el.value, 10) || 1);
             else p[k] = parseFloat(el.value) || 0;
           });
         });
@@ -2179,8 +2201,7 @@
         document.getElementById("mixPanel").classList.toggle("mode-off", !mix);
         document.getElementById("tabCarton").classList.toggle("on", !mix);
         document.getElementById("tabMix").classList.toggle("on", mix);
-        document.getElementById("appTitle").classList.toggle("on", !mix);
-        document.getElementById("mixHead").classList.toggle("on", mix);
+        document.getElementById("appTitle").classList.toggle("on", true);
         document.getElementById("kicker").textContent = mix
           ? "Customer mix on 1 pallet · then load the box"
           : "Load planner · internal (inside) dims, not exterior";
@@ -2199,7 +2220,92 @@
       document.getElementById("tabCarton").onclick = function () { setMode("carton"); };
       document.getElementById("tabMix").onclick = function () { setMode("mix"); };
       document.getElementById("appTitle").onclick = function () { setMode("carton"); };
-      document.getElementById("mixHead").onclick = function () { setMode("mix"); };
+      function mixText() {
+        if (!mixPlan || !mixPlan.per) return "Mix Loading — pack 1 pallet first.";
+        var pal = mixPlan.pal;
+        var crate = mixPlan.crate;
+        var lines = [];
+        lines.push("MIX LOADING");
+        lines.push("Crate " + pal.L + " × " + pal.W + " × " + pal.H + " cm · pallet H 12 cm");
+        lines.push("Cap " + mixPlan.nWant + " · packed " + mixPlan.per + " · " + mixPlan.recipe.split.join(" + "));
+        lines.push("Nest " + mixPlan.nested.nested + " · stack " + mixPlan.levels + " high");
+        CONTAINERS.forEach(function (c) {
+          var fit = palletsInCont(c, crate);
+          lines.push(c.aka + " · " + fit.n + " PLT · " + fit.nx + "×" + fit.ny + "×" + fit.nz);
+        });
+        enabledPots().forEach(function (p) {
+          var n1 = mixPlan.perItem[p.id] || 0;
+          var unit = isSet(p) ? " set" : " pc";
+          var row = p.name + " · 1 PLT " + n1 + unit;
+          CONTAINERS.forEach(function (c) {
+            row += " · " + c.id + " " + (n1 * palletsInCont(c, crate).n) + unit;
+          });
+          lines.push(row);
+        });
+        return lines.join("\n");
+      }
+      function copyOut(txt, ok) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(txt).then(function () { toast(ok); }, function () { toast("Copy failed — see console"); console.log(txt); });
+        } else {
+          toast("Copy failed");
+          console.log(txt);
+        }
+      }
+      document.getElementById("copyMix").onclick = function () { copyOut(mixText(), "Mix plan copied"); };
+      document.getElementById("shotMix").onclick = function () {
+        renderer.render(scene, camera);
+        var a = document.createElement("a");
+        a.href = renderer.domElement.toDataURL("image/png");
+        a.download = (mixView === "cont" ? mixContId : "pallet") + "_mix.png";
+        a.click();
+        toast("PNG saved");
+      };
+      document.getElementById("saveMix").onclick = function () {
+        var dump = pots.map(function (p) {
+          return { id: p.id, name: p.name, belly: p.belly, rim: p.rim, base: p.base, h: p.h, qty: p.qty, pack: p.pack, on: p.on };
+        });
+        try {
+          localStorage.setItem("her-stow-mix", JSON.stringify({
+            mixOnPal: document.getElementById("mixOnPal").value,
+            palMode: palMode(),
+            palL: document.getElementById("palL").value,
+            palW: document.getElementById("palW").value,
+            palBoxH: document.getElementById("palBoxH").value,
+            pots: dump
+          }));
+          toast("Mix saved on this PC");
+        } catch (err) { toast("Save blocked"); }
+      };
+      document.getElementById("loadMix").onclick = function () {
+        try {
+          var raw = localStorage.getItem("her-stow-mix");
+          if (!raw) { toast("No saved mix"); return; }
+          var job = JSON.parse(raw);
+          document.getElementById("mixOnPal").value = job.mixOnPal || 16;
+          setPalMode(job.palMode === "custom" ? "custom" : "auto");
+          if (job.palL) document.getElementById("palL").value = job.palL;
+          if (job.palW) document.getElementById("palW").value = job.palW;
+          if (job.palBoxH) document.getElementById("palBoxH").value = job.palBoxH;
+          if (job.pots && job.pots.length) {
+            pots = job.pots.map(function (p, i) {
+              return {
+                id: p.id || ("p" + (i + 1)), name: p.name, belly: p.belly, rim: p.rim, base: p.base,
+                h: p.h, qty: Math.max(1, p.qty | 0), pack: p.pack || "mix", on: p.on !== false,
+                dataUrl: null, map: null
+              };
+            });
+            potUid = pots.length;
+          }
+          paintPots();
+          syncMixBtn();
+          setMode("mix");
+          runMix();
+          toast("Last mix loaded");
+        } catch (err) { toast("Load failed"); }
+      };
+      document.getElementById("addPot").onclick = addPot;
+      document.getElementById("addPot2").onclick = addPot;
       function setPalMode(mode) {
         document.getElementById("palSize").value = mode === "custom" ? "custom" : "auto";
         document.getElementById("palCustom").classList.toggle("off", mode !== "custom");
