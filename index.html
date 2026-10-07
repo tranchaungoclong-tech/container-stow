@@ -448,14 +448,16 @@
 
       var scene = new THREE.Scene();
       scene.background = new THREE.Color(0x14110e);
-      scene.fog = new THREE.Fog(0x14110e, 18, 48);
+      scene.fog = null;
 
       var camera = new THREE.PerspectiveCamera(42, 1, 0.05, 90);
       var controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.06;
+      controls.minPolarAngle = 0;
       controls.maxPolarAngle = Math.PI;
-      controls.minDistance = 3;
+      controls.enablePan = true;
+      controls.minDistance = 0.8;
       controls.maxDistance = 42;
 
       scene.add(new THREE.AmbientLight(0x6d6458, 0.62));
@@ -538,7 +540,7 @@
         var src = scalePhoto(img);
         var w = src.width, h = src.height;
         var g = src.getContext("2d");
-        if (isWhiteGlaze(src)) return { alpha: src, solid: src };
+        if (isWhiteGlaze(src)) return { alpha: src, solid: src, fill: 1, figure: false };
         var imgData = g.getImageData(0, 0, w, h);
         var d = imgData.data;
         function px(x, y) {
@@ -607,7 +609,8 @@
           : "#c4a574";
         sg.fillRect(0, 0, cw, ch);
         sg.drawImage(alpha, 0, 0);
-        return { alpha: alpha, solid: solid };
+        var fill = objN / Math.max(1, cw * ch);
+        return { alpha: alpha, solid: solid, fill: fill, figure: fill < 0.60 };
       }
       function cropCarton(img) { return knockOutPhoto(img).solid; }
       function bakePhoto(img, target) {
@@ -616,6 +619,8 @@
         target.map = makeTex(cut.solid);
         target.cutTex = makeTex(cut.alpha);
         target.cutAspect = (cut.alpha.width || 1) / Math.max(cut.alpha.height || 1, 1);
+        target.cutFill = cut.fill;
+        target.figure = !!cut.figure;
       }
       function applyPhoto(img, target, thumb, dropEl, onText) {
         bakePhoto(img, target);
@@ -1563,9 +1568,10 @@
       }
       function looksLikeFigure(pot) {
         if (!pot) return false;
+        if (pot.figure) return true;
         var name = String(pot.name || "").toLowerCase();
         var fold = name.normalize("NFD").replace(/[̀-ͯ]/g, "");
-        return /frog|ech|snail|oc\s*sen|animal|figure|tuong/.test(fold);
+        return /frog|ech|snail|oc\s*sen|chim|bird|animal|figure|tuong/.test(fold);
       }
       function holeD(outer) {
         if (!outer) return 0;
@@ -1658,7 +1664,8 @@
         return {
           id: src.id, name: src.name, belly: src.belly, rim: src.rim, base: src.base,
           h: src.h, qty: qty, pack: src.pack || "mix", on: true,
-          dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect
+          dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect,
+          cutFill: src.cutFill, figure: src.figure
         };
       }
       function palletRecipe(list, nWant) {
@@ -2229,11 +2236,10 @@
               var nIn = nestList.length;
               nestList.forEach(function (inn, n) {
                 var fig = looksLikeFigure(inn);
-                var idM = (fig ? Math.min(nestFoot(inn), (Number(s.outer.belly) || s.d) * 0.42) : potPack(inn).d) / 100;
-                var ihM = fig
-                  ? Math.min(potPack(inn).h / 100, hM * 0.52)
-                  : potPack(inn).h / 100;
-                var liftIn = base + (fig ? hM * 0.12 : Math.max(hM * 0.18, hM * 0.36 - ihM * 0.12) + n * Math.max(0.012, ihM * 0.1));
+                var hole = holeD(s.outer);
+                var idM = (fig ? Math.min(nestFoot(inn), hole * 0.92) : potPack(inn).d) / 100;
+                var ihM = potPack(inn).h / 100;
+                var liftIn = base + (fig ? hM * 0.10 : Math.max(hM * 0.18, hM * 0.36 - ihM * 0.12) + n * Math.max(0.012, ihM * 0.1));
                 var ox = 0, oz = 0;
                 if (fig) {
                   ox = 0;
