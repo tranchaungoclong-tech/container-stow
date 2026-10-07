@@ -280,6 +280,7 @@
       <button type="button" class="plus" id="addSku" title="Add carton type">+</button>
       <button type="button" class="ghost" id="addSku2">+ Add carton type</button>
     </div>
+    <label class="drop" id="importCartonPhotos">Import all photos<input type="file" accept="image/*" multiple /></label>
     <div class="row phone-more" style="margin-top:8px;">
       <label class="field"><span>Clearance / bulge (mm)</span><input id="clearance" type="number" min="0" step="1" value="0" /></label>
       <label class="field"><span>Default rotate</span>
@@ -367,6 +368,7 @@
         <button type="button" class="plus" id="addPot" title="Add item">+</button>
         <button type="button" class="ghost" id="addPot2">+ Add item</button>
       </div>
+      <label class="drop" id="importMixPhotos">Import all photos<input type="file" accept="image/*" multiple /></label>
 
       <div class="step"><i>3</i> Pack that pallet</div>
       <button type="button" class="start" id="startMix">Pack 16 on 1 pallet</button>
@@ -584,15 +586,100 @@
         return { alpha: alpha, solid: solid };
       }
       function cropCarton(img) { return knockOutPhoto(img).solid; }
-      function applyPhoto(img, target, thumb, dropEl, onText) {
+      function bakePhoto(img, target) {
         var cut = knockOutPhoto(img);
         target.dataUrl = cut.alpha.toDataURL("image/png");
         target.map = makeTex(cut.solid);
         target.cutTex = makeTex(cut.alpha);
         target.cutAspect = (cut.alpha.width || 1) / Math.max(cut.alpha.height || 1, 1);
-        thumb.src = target.dataUrl;
-        dropEl.classList.add("has");
-        dropEl.childNodes[0].textContent = onText;
+      }
+      function applyPhoto(img, target, thumb, dropEl, onText) {
+        bakePhoto(img, target);
+        if (thumb) thumb.src = target.dataUrl;
+        if (dropEl) {
+          dropEl.classList.add("has");
+          dropEl.childNodes[0].textContent = onText;
+        }
+      }
+      function fileBase(name) {
+        return String(name || "").replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
+      }
+      function isDefaultName(name, prefix) {
+        return !name || new RegExp("^" + prefix + "\\s*\\d+$", "i").test(String(name).trim());
+      }
+      function loadImageFile(file) {
+        return new Promise(function (resolve, reject) {
+          if (!file || String(file.type || "").indexOf("image") !== 0) return reject(new Error("not image"));
+          var reader = new FileReader();
+          reader.onload = function () {
+            var im = new Image();
+            im.onload = function () { resolve({ img: im, name: fileBase(file.name) }); };
+            im.onerror = reject;
+            im.src = reader.result;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+      function importAllPhotos(fileList, mode) {
+        var files = Array.prototype.slice.call(fileList || []).filter(function (f) {
+          return String(f.type || "").indexOf("image") === 0;
+        });
+        files.sort(function (a, b) {
+          return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+        });
+        if (!files.length) { toast("No photos"); return; }
+        toast("Importing " + files.length + "…");
+        Promise.all(files.map(loadImageFile)).then(function (shots) {
+          if (mode === "mix") {
+            while (pots.length < shots.length) {
+              potUid += 1;
+              pots.push({ id: "p" + potUid, name: "Pot " + potUid, belly: 20, rim: 18, base: 12, h: 20, qty: 12, pack: "mix", on: true, dataUrl: null, map: null });
+            }
+            shots.forEach(function (shot, i) {
+              var p = pots[i];
+              bakePhoto(shot.img, p);
+              if (shot.name && isDefaultName(p.name, "Pot")) p.name = shot.name;
+            });
+            paintPots();
+            if (mixPlan) rebuildMix();
+          } else {
+            while (skus.length < shots.length) {
+              skuUid += 1;
+              skus.push({ id: "s" + skuUid, name: "Carton " + skuUid, l: 40, w: 40, h: 40, qty: 100, kg: 0, rot: document.getElementById("rotDefault").value, on: true, img: "", dataUrl: null, map: null });
+            }
+            shots.forEach(function (shot, i) {
+              var s = skus[i];
+              bakePhoto(shot.img, s);
+              if (shot.name && isDefaultName(s.name, "Carton")) s.name = shot.name;
+            });
+            paintSkus();
+            if (lastResults) rebuild();
+          }
+          toast(shots.length + " photos on " + shots.length + " items");
+        }).catch(function () { toast("Import failed"); });
+      }
+      function wireImportAll(el, mode) {
+        var input = el.querySelector("input[type=file]");
+        input.addEventListener("change", function (ev) {
+          importAllPhotos(ev.target.files, mode);
+          ev.target.value = "";
+        });
+        ["dragenter", "dragover"].forEach(function (name) {
+          el.addEventListener(name, function (e) {
+            e.preventDefault(); e.stopPropagation();
+            el.classList.add("over");
+          });
+        });
+        el.addEventListener("dragleave", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          el.classList.remove("over");
+        });
+        el.addEventListener("drop", function (e) {
+          e.preventDefault(); e.stopPropagation();
+          el.classList.remove("over");
+          importAllPhotos(e.dataTransfer && e.dataTransfer.files, mode);
+        });
       }
       function wirePhotoDrop(dropEl, onImage) {
         var input = dropEl.querySelector("input[type=file]");
@@ -2306,6 +2393,8 @@
       };
       document.getElementById("addPot").onclick = addPot;
       document.getElementById("addPot2").onclick = addPot;
+      wireImportAll(document.getElementById("importMixPhotos"), "mix");
+      wireImportAll(document.getElementById("importCartonPhotos"), "carton");
       function setPalMode(mode) {
         document.getElementById("palSize").value = mode === "custom" ? "custom" : "auto";
         document.getElementById("palCustom").classList.toggle("off", mode !== "custom");
