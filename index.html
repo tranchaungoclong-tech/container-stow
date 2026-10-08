@@ -362,7 +362,7 @@
       <p class="hint" style="margin:-4px 0 8px;">Factory crate <b>101 × 65 × 65</b> — 2 sit across 2.35 m, 2-high in the box (~44 on 40'GP). Mix 16 nest + stack inside that 65 cm. Auto uses this. Customer size = you type L × W × H.</p>
 
       <div class="step"><i>2</i> Items in the mix</div>
-      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Qty = mix ratio (24 + 24 → 8 + 8 on a 16 mix). Every item is present. Mix = can nest. Set = already 3-in-1, do not put other items inside.</p>
+      <p class="hint" style="margin:-2px 0 8px;">All items go on the pallet. Cap = mix count (e.g. 16). Qty 0 = share that cap evenly so every item is on the pallet. Qty &gt; 0 = that item’s share (24 + 24 → 8 + 8). Mix = can nest. Set = already 3-in-1, do not put other items inside.</p>
       <div id="pots"></div>
       <div class="add-row">
         <button type="button" class="plus" id="addPot" title="Add item">+</button>
@@ -1700,7 +1700,12 @@
         nWant = Math.max(1, nWant | 0);
         var nSku = list.length;
         if (!nSku) return { units: 0, rows: [], split: [] };
-        var weights = list.map(function (p) { return Math.max(1, p.qty | 0); });
+        var anyQty = list.some(function (p) { return (p.qty | 0) > 0; });
+        var weights = list.map(function (p) {
+          var q = p.qty | 0;
+          if (!anyQty) return 1;
+          return q > 0 ? q : 1;
+        });
         var sumW = weights.reduce(function (a, w) { return a + w; }, 0);
         var counts = list.map(function () { return 0; });
         var used = 0;
@@ -1931,6 +1936,11 @@
           return;
         }
         var nWant = Math.max(1, parseInt(document.getElementById("mixOnPal").value, 10) || 1);
+        if (nWant < list.length) {
+          nWant = list.length;
+          document.getElementById("mixOnPal").value = nWant;
+          toast("Mix count raised to " + nWant + " so every item is on the pallet");
+        }
         var recipe = palletRecipe(list, nWant);
         if (!recipe.units) {
           mixPlan = null;
@@ -2061,7 +2071,7 @@
           "</div>" +
           "<div class='qty-row'>" +
             "<label class='field'><span>H cm</span><input type='number' step='0.1' min='0.1' data-k='h' /></label>" +
-            "<label class='field'><span>Qty (ratio)</span><input type='number' step='1' min='1' data-k='qty' /></label>" +
+            "<label class='field'><span>Qty (0 = even)</span><input type='number' step='1' min='0' data-k='qty' /></label>" +
             "<label class='field'><span>Pack</span>" +
               "<div class='pack-toggle' data-k='pack'>" +
                 "<button type='button' class='chip' data-pack='mix'>Mix</button>" +
@@ -2111,7 +2121,7 @@
             if (!k) return;
             if (k === "on") p.on = el.checked;
             else if (k === "name") p.name = el.value;
-            else if (k === "qty") p.qty = Math.max(1, parseInt(el.value, 10) || 1);
+            else if (k === "qty") p.qty = Math.max(0, parseInt(el.value, 10) || 0);
             else p[k] = parseFloat(el.value) || 0;
           });
         });
