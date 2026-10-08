@@ -625,11 +625,18 @@
         var solid = document.createElement("canvas");
         solid.width = cw; solid.height = ch;
         var sg = solid.getContext("2d");
-        sg.fillStyle = objN
+        var glaze = objN
           ? "rgb(" + Math.round(objR / objN) + "," + Math.round(objG / objN) + "," + Math.round(objB / objN) + ")"
           : "#c4a574";
+        sg.fillStyle = glaze;
         sg.fillRect(0, 0, cw, ch);
         sg.drawImage(alpha, 0, 0);
+        var fill = objN / Math.max(1, cw * ch);
+        if (fill < 0.85) {
+          sg.globalCompositeOperation = "destination-over";
+          sg.fillStyle = glaze;
+          sg.fillRect(0, 0, cw, ch);
+        }
         var fill = objN / Math.max(1, cw * ch);
         return { alpha: alpha, solid: solid, fill: fill, figure: fill < 0.60 };
       }
@@ -2128,15 +2135,16 @@
         return new THREE.MeshStandardMaterial({ color: hex || 0xc4a06a, roughness: 0.88, metalness: 0.02 });
       }
       function potMat(pot, fallback, cut) {
-        var tex = pot && (cut && pot.cutTex ? pot.cutTex : pot.map);
+        var colorPot = pot && pot.figure !== true && pot.cutFill != null && pot.cutFill < 0.85;
+        var tex = pot && ((cut || colorPot) && pot.cutTex ? pot.cutTex : pot.map);
         if (tex) {
           return new THREE.MeshStandardMaterial({
             map: tex,
             roughness: 0.62,
             metalness: 0.04,
-            transparent: !!cut,
-            alphaTest: cut ? 0.12 : 0,
-            side: cut ? THREE.DoubleSide : THREE.FrontSide
+            transparent: !!(cut || colorPot),
+            alphaTest: (cut || colorPot) ? 0.08 : 0,
+            side: (cut || colorPot) ? THREE.DoubleSide : THREE.FrontSide
           });
         }
         return new THREE.MeshStandardMaterial({ color: fallback || 0xc4a574, roughness: 0.7 });
