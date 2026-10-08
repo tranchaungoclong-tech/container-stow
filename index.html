@@ -558,7 +558,6 @@
         var src = scalePhoto(img);
         var w = src.width, h = src.height;
         var g = src.getContext("2d");
-        if (isWhiteGlaze(src)) return { alpha: src, solid: src, fill: 1, figure: false };
         var imgData = g.getImageData(0, 0, w, h);
         var d = imgData.data;
         function px(x, y) {
@@ -577,10 +576,10 @@
           var dr = c[0] - bg[0], dg = c[1] - bg[1], db = c[2] - bg[2];
           spread = Math.max(spread, Math.sqrt(dr * dr + dg * dg + db * db));
         });
-        var thr = nearWhite(bg)
-          ? Math.max(22, Math.min(48, spread + 18))
+        var paper = lumaOf(bg) >= 210 && chromaOf(bg) <= 22;
+        var thr = paper
+          ? Math.max(14, Math.min(28, spread + 10))
           : Math.max(28, Math.min(64, spread + 28));
-        if (nearWhite(bg)) thr = Math.min(thr, 40);
         var edge = new Uint8Array(w * h);
         var q = [];
         function tryEdge(x, y) {
