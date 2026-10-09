@@ -1924,9 +1924,9 @@
       function proposeHalfSize() {
         var box = CONTAINERS[1];
         var gap = BOARD_CM / 100;
-        var best = { L: 117, W: 100, waste: 1e9 };
+        var best = { L: 100, W: 78, waste: 1e9 };
         [10, 11, 12].forEach(function (nx) {
-          [2].forEach(function (ny) {
+          [2, 3].forEach(function (ny) {
             var L = Math.floor((box.L / nx - gap) * 100);
             var W = Math.floor((box.W / ny - gap) * 100);
             if (L < 80 || W < 70) return;
@@ -1974,8 +1974,6 @@
           var nx = Math.max(0, Math.floor((cont.L + 1e-9) / (cL + gap)));
           var ny = Math.max(0, Math.floor((cont.W + 1e-9) / (cW + gap)));
           var nz = Math.max(0, Math.floor((cont.H + 1e-9) / (crate.H + gap)));
-          if (crate.H <= 0.70 && nz > 2) nz = 2;
-          if (ny > 2) ny = 2;
           return { nx: nx, ny: ny, nz: nz, n: nx * ny * Math.max(nz, 0), cL: cL, cW: cW, rot: rot };
         }
         var a = layout(crate.L, crate.W, false);
