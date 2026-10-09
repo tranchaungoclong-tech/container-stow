@@ -2422,8 +2422,9 @@
           var potsOnly = [];
           while (g2.children.length > 2) potsOnly.push(g2.children.pop());
           potsOnly.forEach(function (m) {
-            m.position.y = crate.H + (crate.H - m.position.y);
+            var hPot = m.isSprite ? m.scale.y : (m.geometry && m.geometry.parameters && m.geometry.parameters.h) || crate.H * 0.7;
             m.rotation.x = Math.PI;
+            m.position.y = m.position.y + hPot;
             g2.add(m);
           });
           g2.position.set(oxf, 0, 0);
