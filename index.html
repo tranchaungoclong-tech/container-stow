@@ -2412,6 +2412,22 @@
         drawShell(cont);
         if (!mixPlan || !mixPlan.per) return;
         var crate = mixPlan.crate;
+        if (mixView === "full") {
+          var oxf = cont.L + 0.95;
+          drawOneCrate(crate, mixPlan.plane, oxf, 0, 0);
+          var before = root.children.length;
+          drawOneCrate(crate, mixPlan.plane, 0, 0, 0);
+          var g2 = root.children[before];
+          var potsOnly = [];
+          while (g2.children.length > 2) potsOnly.push(g2.children.pop());
+          potsOnly.forEach(function (m) {
+            m.position.y = crate.H + (crate.H - m.position.y);
+            m.rotation.x = Math.PI;
+            g2.add(m);
+          });
+          g2.position.set(oxf, 0, 0);
+          return;
+        }
         if (mixView !== "cont") {
           var ox = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
@@ -2590,9 +2606,12 @@
       document.getElementById("btnFull").onclick = function () {
         document.getElementById("btnHalf").classList.remove("on");
         document.getElementById("btnFull").classList.add("on");
+        if (!mixPlan) runMix();
+        if (!mixPlan) return;
+        mixView = "full";
         document.getElementById("halfCount").textContent = "FULL PALLET";
-        document.getElementById("halfWhy").textContent = "Chưa có cách đóng. Chỉ cách đóng full pallet rồi tao làm tiếp.";
-        toast("Full pallet — chờ cách đóng");
+        document.getElementById("halfWhy").textContent = "Outdoor. Hàng 1 miệng lên. Hàng 2 đít đối đít để hẹp bề ngang và cân. Cùng mix với half, không thêm item.";
+        rebuildMix();
       };
       document.getElementById("packInto").onclick = function () {
         if (!mixPlan) runMix();

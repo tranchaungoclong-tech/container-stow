@@ -1,4 +1,4 @@
-const CACHE = "container-stow-v47";
+const CACHE = "container-stow-v48";
 const CORE = [
   "./",
   "./index.html",
