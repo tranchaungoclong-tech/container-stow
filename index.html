@@ -631,13 +631,14 @@
         sg.fillRect(0, 0, cw, ch);
         sg.drawImage(alpha, 0, 0);
         var fill = objN / Math.max(1, cw * ch);
-        if (fill < 0.85) {
-          sg.globalCompositeOperation = "destination-over";
-          sg.fillStyle = glaze;
-          sg.fillRect(0, 0, cw, ch);
+        var glazeHex = 0xc4a574;
+        if (objN) {
+          var rr = Math.max(0, Math.min(255, Math.round(objR / objN)));
+          var gg = Math.max(0, Math.min(255, Math.round(objG / objN)));
+          var bb = Math.max(0, Math.min(255, Math.round(objB / objN)));
+          glazeHex = (rr << 16) | (gg << 8) | bb;
         }
-        var fill = objN / Math.max(1, cw * ch);
-        return { alpha: alpha, solid: solid, fill: fill, figure: fill < 0.60 };
+        return { alpha: alpha, solid: solid, fill: fill, figure: fill < 0.60, glaze: glazeHex };
       }
       function cropCarton(img) { return knockOutPhoto(img).solid; }
       function bakePhoto(img, target) {
@@ -648,6 +649,7 @@
         target.cutAspect = (cut.alpha.width || 1) / Math.max(cut.alpha.height || 1, 1);
         target.cutFill = cut.fill;
         target.figure = !!cut.figure;
+        target.glaze = cut.glaze || 0xc4a574;
       }
       function applyPhoto(img, target, thumb, dropEl, onText) {
         bakePhoto(img, target);
@@ -1692,7 +1694,7 @@
           id: src.id, name: src.name, belly: src.belly, rim: src.rim, base: src.base,
           h: src.h, qty: qty, pack: src.pack || "mix", on: true,
           dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect,
-          cutFill: src.cutFill, figure: src.figure
+          cutFill: src.cutFill, figure: src.figure, glaze: src.glaze
         };
       }
       function palletRecipe(list, nWant) {
@@ -2153,19 +2155,18 @@
         return new THREE.MeshStandardMaterial({ color: hex || 0xc4a06a, roughness: 0.88, metalness: 0.02 });
       }
       function potMat(pot, fallback, cut) {
-        var colorPot = pot && pot.figure !== true && pot.cutFill != null && pot.cutFill < 0.85;
-        var tex = pot && ((cut || colorPot) && pot.cutTex ? pot.cutTex : pot.map);
-        if (tex) {
+        if (cut && pot && pot.cutTex) {
           return new THREE.MeshStandardMaterial({
-            map: tex,
+            map: pot.cutTex,
             roughness: 0.62,
             metalness: 0.04,
-            transparent: !!(cut || colorPot),
-            alphaTest: (cut || colorPot) ? 0.08 : 0,
-            side: (cut || colorPot) ? THREE.DoubleSide : THREE.FrontSide
+            transparent: true,
+            alphaTest: 0.08,
+            side: THREE.DoubleSide
           });
         }
-        return new THREE.MeshStandardMaterial({ color: fallback || 0xc4a574, roughness: 0.7 });
+        var hex = (pot && pot.glaze) || fallback || 0xc4a574;
+        return new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55, metalness: 0.04 });
       }
       function drawPotMesh(pot, dM, hM, asCut) {
         if (asCut && looksLikeFigure(pot) && pot && (pot.cutTex || pot.map)) {
