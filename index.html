@@ -644,6 +644,35 @@
         }
         return { alpha: alpha, solid: solid, fill: fill, figure: fill < 0.60, glaze: glazeHex };
       }
+      function bandMap(cv) {
+        var w = cv.width, h = cv.height;
+        if (!w || !h) return null;
+        var src = cv.getContext("2d").getImageData(0, 0, w, h).data;
+        var out = document.createElement("canvas");
+        out.width = 8;
+        out.height = Math.min(128, h);
+        var g = out.getContext("2d");
+        var img = g.createImageData(out.width, out.height);
+        var d = img.data;
+        for (var y = 0; y < out.height; y++) {
+          var sy = Math.min(h - 1, Math.floor(y * h / out.height));
+          var r = 0, gg = 0, b = 0, n = 0;
+          var x0 = (w * 0.3) | 0, x1 = (w * 0.7) | 0;
+          for (var x = x0; x < x1; x += 2) {
+            var i = (sy * w + x) * 4;
+            if (src[i + 3] < 40) continue;
+            r += src[i]; gg += src[i + 1]; b += src[i + 2]; n++;
+          }
+          if (!n) { r = 196; gg = 165; b = 116; n = 1; }
+          r = (r / n) | 0; gg = (gg / n) | 0; b = (b / n) | 0;
+          for (var xx = 0; xx < out.width; xx++) {
+            var o = (y * out.width + xx) * 4;
+            d[o] = r; d[o + 1] = gg; d[o + 2] = b; d[o + 3] = 255;
+          }
+        }
+        g.putImageData(img, 0, 0);
+        return makeTex(out);
+      }
       function cropCarton(img) { return knockOutPhoto(img).solid; }
       function bakePhoto(img, target) {
         var cut = knockOutPhoto(img);
@@ -654,6 +683,7 @@
         target.cutFill = cut.fill;
         target.figure = !!cut.figure;
         target.glaze = cut.glaze || 0xc4a574;
+        target.band = bandMap(cut.alpha);
       }
       function applyPhoto(img, target, thumb, dropEl, onText) {
         bakePhoto(img, target);
@@ -1698,7 +1728,7 @@
           id: src.id, name: src.name, belly: src.belly, rim: src.rim, base: src.base,
           h: src.h, qty: qty, pack: src.pack || "mix", on: true,
           dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect,
-          cutFill: src.cutFill, figure: src.figure, glaze: src.glaze
+          cutFill: src.cutFill, figure: src.figure, glaze: src.glaze, band: src.band
         };
       }
       function palletRecipe(list, nWant) {
@@ -2169,11 +2199,11 @@
             side: THREE.DoubleSide
           });
         }
-        if (pot && pot.map) {
+        if (pot && pot.band) {
           return new THREE.MeshStandardMaterial({
-            map: pot.map,
-            roughness: 0.72,
-            metalness: 0.02
+            map: pot.band,
+            roughness: 0.62,
+            metalness: 0.04
           });
         }
         var hex = (pot && pot.glaze) || fallback || 0xc4a574;
