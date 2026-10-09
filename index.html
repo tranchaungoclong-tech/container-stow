@@ -406,6 +406,7 @@
       <div class="row">
         <button type="button" class="chip on" id="btnHalf">Half pallet</button>
         <button type="button" class="chip" id="btnFull">Full pallet</button>
+        <button type="button" class="chip" id="btnNest">Nest packaging</button>
       </div>
       <div class="propose" id="halfBox">
         <div class="k">This pack</div>
@@ -2428,6 +2429,22 @@
           g2.position.set(oxf, 0, 0);
           return;
         }
+        if (mixView === "nest") {
+          var oxn = cont.L + 0.95;
+          drawOneCrate(crate, mixPlan.plane, oxn, 0, 0);
+          var deck = root.children[root.children.length - 1];
+          var step = Math.max(0.04, crate.H * 0.22);
+          for (var layer = 1; layer <= 4; layer++) {
+            deck.children.forEach(function (ch) {
+              if (!ch.isMesh && !ch.isSprite) return;
+              var cpy = ch.clone();
+              cpy.position.y = ch.position.y + layer * step;
+              if (layer % 2 === 1) cpy.rotation.x = Math.PI;
+              deck.add(cpy);
+            });
+          }
+          return;
+        }
         if (mixView !== "cont") {
           var ox = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
@@ -2611,6 +2628,17 @@
         mixView = "full";
         document.getElementById("halfCount").textContent = "FULL PALLET";
         document.getElementById("halfWhy").textContent = "Outdoor. Hàng 1 miệng lên. Hàng 2 đít đối đít để hẹp bề ngang và cân. Cùng mix với half, không thêm item.";
+        rebuildMix();
+      };
+      document.getElementById("btnNest").onclick = function () {
+        document.getElementById("btnHalf").classList.remove("on");
+        document.getElementById("btnFull").classList.remove("on");
+        document.getElementById("btnNest").classList.add("on");
+        if (!mixPlan) runMix();
+        if (!mixPlan) return;
+        mixView = "nest";
+        document.getElementById("halfCount").textContent = "NEST";
+        document.getElementById("halfWhy").textContent = "Một mã. Úp lồng thành cột trên pallet, rồi bọc như half khi vào container.";
         rebuildMix();
       };
       document.getElementById("packInto").onclick = function () {
