@@ -1864,22 +1864,24 @@
         return Math.max(8, (Number(boxH) || FACTORY_CRATE.H) - DECK_CM);
       }
       function packVolume(stacks, L, W, innerH) {
+        var pair = mixView === "full";
         var remain = stacks.slice().sort(function (a, b) { return b.d - a.d || b.h - a.h; });
         var columns = [];
         remain.forEach(function (s) {
           var placed = false;
-          for (var c = 0; c < columns.length; c++) {
-            var col = columns[c];
-            if (s.d > col.d + 1e-6) continue;
-            var addH = s.h;
-            if (col.items.length) continue;
-            if (col.h + addH > innerH + 1e-6) continue;
-            col.items.push(s);
-            col.h += addH;
-            placed = true;
-            break;
+          if (pair) {
+            for (var c = 0; c < columns.length; c++) {
+              var col = columns[c];
+              if (col.items.length >= 2) continue;
+              if (Math.abs(s.d - col.d) > 1e-6) continue;
+              col.items.push(s);
+              col.h = s.h;
+              col.paired = true;
+              placed = true;
+              break;
+            }
           }
-          if (!placed) columns.push({ d: s.d, h: s.h, items: [s] });
+          if (!placed) columns.push({ d: s.d, h: s.h, items: [s], paired: false });
         });
         var planeStacks = columns.map(function (col) {
           return { d: col.d, h: col.h, items: col.items, outer: col.items[0].outer, inner: col.items[0].inner, pack: col.items[0].pack };
@@ -1888,13 +1890,15 @@
         var leftoverCols = Math.max(0, planeStacks.length - hit.plane.placed.length);
         var leftoverPcs = leftoverCols;
         if (leftoverCols) leftoverPcs = leftoverCols;
+        var pairedCols = columns.filter(function (c) { return c.paired; }).length;
         return {
           L: hit.L, W: hit.W,
           plane: hit.plane,
           columns: columns,
           leftover: leftoverCols,
           placedCols: hit.plane.placed.length,
-          levels: columns.reduce(function (m, c) { return Math.max(m, c.items.length); }, 1)
+          pairedCols: pairedCols,
+          levels: pair ? (pairedCols ? 2 : 1) : 1
         };
       }
       function countOnVolume(plane) {
@@ -1955,7 +1959,7 @@
         return {
           L: vol.L, W: vol.W, H: size.H, name: size.name,
           area: size.L * size.W, plane: vol.plane, leftover: vol.leftover,
-          placed: vol.placedCols, levels: vol.levels, innerH: innerH, boxH: size.H
+          placed: vol.placedCols, levels: vol.levels, paired: vol.pairedCols || 0, innerH: innerH, boxH: size.H
         };
       }
       function crateOuter(pal) {
@@ -2000,6 +2004,7 @@
         }
         var typed = parseInt(document.getElementById("mixOnPal").value, 10) || 16;
         var cap = Math.max(list.length, typed);
+        mixView = document.getElementById("btnFull").classList.contains("on") ? "full" : "pallet";
         var best = null;
         var tries = [];
         for (var k = list.length; k <= cap; k++) tries.push(k);
@@ -2015,7 +2020,10 @@
           Object.keys(perItemTry).forEach(function (id) { packed += perItemTry[id]; });
           if (packed > cap) return;
           var missing = list.length - present;
+          var pairNeed = mixView === "full" ? Math.floor(typed / 2) : 0;
+          var paired = palTry.paired || 0;
           var score = (missing ? -1000 - missing * 10 : 100) + present * 20 - Math.abs(cap - packed);
+          if (pairNeed) score += Math.min(paired, pairNeed) * 40 - Math.abs(pairNeed - paired) * 8;
           if (!best || score > best.score) {
             best = { n: n, recipe: recipeTry, nested: nestedTry, pal: palTry, score: score, packed: packed, missing: missing };
           }
@@ -2025,7 +2033,7 @@
           toast("No items to pack");
           return;
         }
-        nWant = best.n;
+        nWant = typed;
         document.getElementById("mixOnPal").value = nWant;
         var recipe = best.recipe;
         var nested = best.nested;
@@ -2395,10 +2403,17 @@
             addPotAt(s.outer, dM, hM, base, false);
             return hM;
           }
-          var lift = 0;
           items.forEach(function (s, i) {
-            var used = drawStack(s, lift);
-            lift += i === 0 ? used : used * 0.62;
+            if (i === 0) { drawStack(s, 0); return; }
+            var dM2 = s.d / 100;
+            var hM2 = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
+            var mesh2 = drawPotMesh(s.outer, dM2, hM2, false);
+            mesh2.position.set(0, 0, 0);
+            mesh2.rotation.x = Math.PI;
+            var hold2 = new THREE.Group();
+            hold2.add(mesh2);
+            hold2.position.set(cx, y0 + hM2, cz);
+            g.add(hold2);
           });
         });
         g.position.set(ox, oy, oz);
@@ -2416,24 +2431,6 @@
         if (mixView === "full") {
           var oxf = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, oxf, 0, 0);
-          var before = root.children.length;
-          drawOneCrate(crate, mixPlan.plane, 0, 0, 0);
-          var g2 = root.children[before];
-          var potsOnly = [];
-          while (g2.children.length > 2) potsOnly.push(g2.children.pop());
-          potsOnly.forEach(function (m) {
-            var hPot = m.isSprite ? m.scale.y : (m.geometry && m.geometry.parameters && m.geometry.parameters.h) || crate.H * 0.7;
-            var footY = m.position.y;
-            var cx = m.position.x;
-            var cz = m.position.z;
-            m.position.set(0, 0, 0);
-            m.rotation.x = Math.PI;
-            var holder = new THREE.Group();
-            holder.add(m);
-            holder.position.set(cx, footY + hPot, cz);
-            g2.add(holder);
-          });
-          g2.position.set(oxf, 0, 0);
           return;
         }
         if (mixView === "nest") {
