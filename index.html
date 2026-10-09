@@ -2394,12 +2394,6 @@
         drawShell(cont);
         if (!mixPlan || !mixPlan.per) return;
         var crate = mixPlan.crate;
-        if (mixView === "cont") {
-          var fitLab = palletsInCont(cont, crate);
-          var tag = makeLabel("HALF PALLET  " + fitLab.n + "  in  " + cont.name);
-          tag.position.set(cont.L / 2, cont.H + 0.85, 0);
-          root.add(tag);
-        }
         if (mixView !== "cont") {
           var ox = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
