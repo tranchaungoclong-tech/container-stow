@@ -1881,7 +1881,6 @@
             for (var c = 0; c < columns.length; c++) {
               var col = columns[c];
               if (col.items.length >= 2) continue;
-              if (Math.abs(s.d - col.d) > 1e-6) continue;
               col.items.push(s);
               col.h = s.h;
               col.paired = true;
@@ -2428,12 +2427,11 @@
             var dM2 = s.d / 100;
             var hM2 = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
             var mesh2 = drawPotMesh(s.outer, dM2, hM2, false);
-            var foot = mesh2.isSprite ? 0 : hM2 / 2;
-            mesh2.position.set(0, -foot, 0);
+            mesh2.position.set(0, hM2, 0);
             mesh2.rotation.x = Math.PI;
             var hold2 = new THREE.Group();
             hold2.add(mesh2);
-            hold2.position.set(cx, y0 + foot, cz);
+            hold2.position.set(cx, y0, cz);
             g.add(hold2);
           });
         });
