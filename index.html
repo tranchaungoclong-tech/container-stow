@@ -1944,15 +1944,26 @@
       }
       function fitPallet(stacks, boxH) {
         var size;
+        var maxPot = 20;
+        (stacks || []).forEach(function (s) { if (s.h > maxPot) maxPot = s.h; });
+        var deckH = Math.ceil(maxPot + 14);
+        if (mixView === "full") deckH = Math.ceil(maxPot * 2 + 14);
         if (palMode() === "custom") {
           var c = customPal();
-          size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
+          size = { L: c.L, W: c.W, H: Math.max(c.H, deckH), name: "customer " + c.L + "×" + c.W + "×" + c.H };
         } else {
-          var prop = proposeHalfSize();
-          var maxPot = 20;
-          (stacks || []).forEach(function (s) { if (s.h > maxPot) maxPot = s.h; });
-          var boxH = Math.ceil(maxPot + 14);
-          size = { L: prop.L, W: prop.W, H: boxH, name: "half " + prop.L + "×" + prop.W + "×" + boxH };
+          var widest = 20;
+          (stacks || []).forEach(function (s) { if (s.d > widest) widest = s.d; });
+          var n = Math.max(1, (stacks || []).length);
+          var across = Math.max(1, Math.round(Math.sqrt(n)));
+          var deep = Math.ceil(n / across);
+          var pad = 6;
+          size = {
+            L: Math.ceil(across * widest + pad),
+            W: Math.ceil(deep * widest + pad),
+            H: deckH,
+            name: "half"
+          };
         }
         var innerH = crateInnerH(size.H);
         var vol = packVolume(stacks, size.L, size.W, innerH);
@@ -2005,6 +2016,7 @@
         var typed = parseInt(document.getElementById("mixOnPal").value, 10) || 16;
         var cap = Math.max(list.length, typed);
         mixView = document.getElementById("btnFull").classList.contains("on") ? "full" : "pallet";
+        document.getElementById("palSize").value = "auto";
         var best = null;
         var tries = [];
         for (var k = list.length; k <= cap; k++) tries.push(k);
@@ -2408,11 +2420,12 @@
             var dM2 = s.d / 100;
             var hM2 = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
             var mesh2 = drawPotMesh(s.outer, dM2, hM2, false);
-            mesh2.position.set(0, 0, 0);
+            var foot = mesh2.isSprite ? 0 : hM2 / 2;
+            mesh2.position.set(0, -foot, 0);
             mesh2.rotation.x = Math.PI;
             var hold2 = new THREE.Group();
             hold2.add(mesh2);
-            hold2.position.set(cx, y0 + hM2 * (mesh2.isSprite ? 0.5 : 1), cz);
+            hold2.position.set(cx, y0 + foot, cz);
             g.add(hold2);
           });
         });
