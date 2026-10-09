@@ -403,6 +403,15 @@
         <thead><tr><th>Item</th><th class="num">1 pallet</th><th class="num">20'GP</th><th class="num">40'GP</th><th class="num">40HC</th></tr></thead>
         <tbody id="mixBreak"></tbody>
       </table>
+      <div class="row">
+        <button type="button" class="chip on" id="btnHalf">Half pallet</button>
+        <button type="button" class="chip" id="btnFull">Full pallet</button>
+      </div>
+      <div class="propose" id="halfBox">
+        <div class="k">This pack</div>
+        <div class="v" id="halfCount">Pack first</div>
+        <div class="s" id="halfWhy">Half pallet is this mix. Full pallet waits for the next pack method.</div>
+      </div>
       <div class="acts">
         <button type="button" class="ghost" id="copyMix">Copy mix plan</button>
         <button type="button" class="ghost" id="shotMix">Save 3D PNG</button>
@@ -1912,13 +1921,29 @@
         });
         return map;
       }
+      function proposeHalfSize() {
+        var box = CONTAINERS[1];
+        var gap = BOARD_CM / 100;
+        var best = { L: 117, W: 100, waste: 1e9 };
+        [10, 11, 12].forEach(function (nx) {
+          [2].forEach(function (ny) {
+            var L = Math.floor((box.L / nx - gap) * 100);
+            var W = Math.floor((box.W / ny - gap) * 100);
+            if (L < 80 || W < 70) return;
+            var waste = (box.L - nx * (L / 100 + gap)) + (box.W - ny * (W / 100 + gap));
+            if (waste < best.waste) best = { L: L, W: W, waste: waste, nx: nx, ny: ny };
+          });
+        });
+        return best;
+      }
       function fitPallet(stacks, boxH) {
         var size;
         if (palMode() === "custom") {
           var c = customPal();
           size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
         } else {
-          size = { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: FACTORY_CRATE.name };
+          var prop = proposeHalfSize();
+          size = { L: prop.L, W: prop.W, H: FACTORY_CRATE.H, name: "half " + prop.L + "×" + prop.W };
         }
         var innerH = crateInnerH(size.H);
         var vol = packVolume(stacks, size.L, size.W, innerH);
@@ -2031,6 +2056,11 @@
         var fit20 = palletsInCont(CONTAINERS[0], crate);
         var fit40 = palletsInCont(CONTAINERS[1], crate);
         var fitHC = palletsInCont(CONTAINERS[2], crate);
+        var halfN = fit40.n;
+        document.getElementById("halfCount").textContent = halfN + " HALF PALLET";
+        document.getElementById("halfWhy").textContent =
+          "40'GP holds " + halfN + " of this half pallet (" + pal.L + "×" + pal.W + "×" + pal.H + "). " +
+          "20' " + fit20.n + " · 40HC " + fitHC.n + ". Empty deck can take a snail or bird if Base ≤ Rim. Full pallet is not this pack.";
         document.getElementById("mixProposeSize").textContent = pal.L + " × " + pal.W + " × " + pal.H + " cm";
         document.getElementById("mixProposeWhy").textContent =
           (palMode() === "auto" ? "Factory crate: " : "Customer crate: ") +
@@ -2364,6 +2394,12 @@
         drawShell(cont);
         if (!mixPlan || !mixPlan.per) return;
         var crate = mixPlan.crate;
+        if (mixView === "cont") {
+          var fitLab = palletsInCont(cont, crate);
+          var tag = makeLabel("HALF PALLET  " + fitLab.n + "  in  " + cont.name);
+          tag.position.set(cont.L / 2, cont.H + 0.85, 0);
+          root.add(tag);
+        }
         if (mixView !== "cont") {
           var ox = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
@@ -2533,6 +2569,18 @@
       });
       setPalMode("auto");
       document.getElementById("startMix").onclick = runMix;
+      document.getElementById("btnHalf").onclick = function () {
+        document.getElementById("btnHalf").classList.add("on");
+        document.getElementById("btnFull").classList.remove("on");
+        if (mixPlan) rebuildMix();
+      };
+      document.getElementById("btnFull").onclick = function () {
+        document.getElementById("btnHalf").classList.remove("on");
+        document.getElementById("btnFull").classList.add("on");
+        document.getElementById("halfCount").textContent = "FULL PALLET";
+        document.getElementById("halfWhy").textContent = "Chưa có cách đóng. Chỉ cách đóng full pallet rồi tao làm tiếp.";
+        toast("Full pallet — chờ cách đóng");
+      };
       document.getElementById("packInto").onclick = function () {
         if (!mixPlan) runMix();
         if (!mixPlan) return;
