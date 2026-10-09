@@ -372,6 +372,9 @@
 
       <div class="step"><i>3</i> Pack that pallet</div>
       <button type="button" class="start" id="startMix">Pack 1 pallet</button>
+      <div class="row" style="align-items:end;">
+        <label class="field"><span>Pallets to show (0 = full box)</span><input id="pltShow" type="number" min="0" step="1" value="0" /></label>
+      </div>
       <button type="button" class="start" id="packInto" style="margin-top:0;">Pack pallet vào container</button>
       <button type="button" class="ghost" id="showPalOut" style="width:100%;margin:-4px 0 10px;">Show 1 pallet outside</button>
       <div class="cards" id="mixCards"></div>
@@ -2337,7 +2340,9 @@
         var cL = fit.cL || crate.L;
         var cW = fit.cW || crate.W;
         var shown = 0;
-        var want = Math.min(fit.n, 24);
+        var asked = parseInt(document.getElementById("pltShow").value, 10);
+        if (!(asked > 0)) asked = fit.n;
+        var want = Math.min(fit.n, asked, 80);
         for (var iz = 0; iz < fit.nz; iz++) {
           for (var ix = 0; ix < fit.nx; ix++) {
             for (var iy = 0; iy < fit.ny; iy++) {
@@ -2499,6 +2504,9 @@
         paintMixCards();
         rebuildMix();
       };
+      document.getElementById("pltShow").addEventListener("change", function () {
+        if (mixView === "cont" && mixPlan) rebuildMix();
+      });
       function syncMixBtn() {
         document.getElementById("startMix").textContent = "Pack fullest even mix";
       }
