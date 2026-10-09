@@ -1997,13 +1997,11 @@
           toast("Add a pottery item first");
           return;
         }
-        var typed = parseInt(document.getElementById("mixOnPal").value, 10);
-        var nWant = (typed > 0) ? Math.max(list.length, typed) : 0;
+        var typed = parseInt(document.getElementById("mixOnPal").value, 10) || 16;
+        var cap = Math.max(list.length, typed);
         var best = null;
-        var tries = nWant ? [nWant] : [];
-        if (!nWant) {
-          for (var k = 1; k <= 8; k++) tries.push(list.length * k);
-        }
+        var tries = [];
+        for (var k = list.length; k <= cap; k++) tries.push(k);
         tries.forEach(function (n) {
           var recipeTry = palletRecipe(list, n);
           var nestedTry = nestStacks(recipeTry.rows);
@@ -2011,9 +2009,12 @@
           var palTry = fitPallet(nestedTry.stacks);
           var perItemTry = countOnVolume(palTry.plane);
           var packed = 0;
+          var present = 0;
+          list.forEach(function (p) { if (perItemTry[p.id]) present += 1; });
           Object.keys(perItemTry).forEach(function (id) { packed += perItemTry[id]; });
-          var missing = list.filter(function (p) { return !perItemTry[p.id]; }).length;
-          var score = (missing ? -1000 : 0) + packed - (palTry.leftover || 0) * 5;
+          if (packed > cap) return;
+          var missing = list.length - present;
+          var score = (missing ? -1000 - missing * 10 : 100) + present * 20 - Math.abs(cap - packed);
           if (!best || score > best.score) {
             best = { n: n, recipe: recipeTry, nested: nestedTry, pal: palTry, score: score, packed: packed, missing: missing };
           }
@@ -2427,7 +2428,8 @@
         var asked = parseInt(document.getElementById("pltShow").value, 10);
         if (!(asked > 0)) asked = fit.n;
         var want = Math.min(fit.n, asked, 80);
-        for (var iz = 0; iz < fit.nz; iz++) {
+        var halfHigh = Math.min(2, fit.nz);
+        for (var iz = 0; iz < halfHigh; iz++) {
           for (var ix = 0; ix < fit.nx; ix++) {
             for (var iy = 0; iy < fit.ny; iy++) {
               if (shown >= want) return;
