@@ -2169,6 +2169,13 @@
             side: THREE.DoubleSide
           });
         }
+        if (pot && pot.cutTex) {
+          return new THREE.MeshStandardMaterial({
+            map: pot.cutTex,
+            roughness: 0.72,
+            metalness: 0.02
+          });
+        }
         var hex = (pot && pot.glaze) || fallback || 0xc4a574;
         return new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55, metalness: 0.04 });
       }
