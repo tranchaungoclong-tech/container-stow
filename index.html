@@ -1694,7 +1694,7 @@
         });
         var stacks = [];
         var nested = 0;
-        var flat = mixView === "pallet" || mixView === "full";
+        var flat = mixView === "full";
         units.forEach(function (pot) {
           var op = potPack(pot);
           if (flat) {
@@ -1872,7 +1872,7 @@
         return Math.max(8, (Number(boxH) || FACTORY_CRATE.H) - DECK_CM);
       }
       function packVolume(stacks, L, W, innerH) {
-        var pair = mixView === "full";
+        var pair = mixView === "full" || mixView === "pallet";
         var remain = stacks.slice().sort(function (a, b) { return b.d - a.d || b.h - a.h; });
         var columns = [];
         remain.forEach(function (s) {
@@ -1953,24 +1953,13 @@
         var size;
         var maxPot = 20;
         (stacks || []).forEach(function (s) { if (s.h > maxPot) maxPot = s.h; });
-        var deckH = Math.ceil(maxPot + 14);
-        if (mixView === "full") deckH = Math.ceil(maxPot * 2 + 14);
         if (palMode() === "custom") {
           var c = customPal();
-          size = { L: c.L, W: c.W, H: Math.max(c.H, deckH), name: "customer " + c.L + "×" + c.W + "×" + c.H };
+          size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
         } else {
-          var widest = 20;
-          (stacks || []).forEach(function (s) { if (s.d > widest) widest = s.d; });
-          var n = Math.max(1, (stacks || []).length);
-          var across = Math.max(1, Math.round(Math.sqrt(n)));
-          var deep = Math.ceil(n / across);
-          var pad = 6;
-          size = {
-            L: Math.ceil(across * widest + pad),
-            W: Math.ceil(deep * widest + pad),
-            H: deckH,
-            name: "half"
-          };
+          var prop = proposeHalfSize();
+          size = { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: "factory " + FACTORY_CRATE.L + "×" + FACTORY_CRATE.W + "×" + FACTORY_CRATE.H };
+          if (prop && prop.L && mixView === "cont") size = { L: prop.L, W: prop.W, H: FACTORY_CRATE.H, name: "half " + prop.L + "×" + prop.W };
         }
         var innerH = crateInnerH(size.H);
         var vol = packVolume(stacks, size.L, size.W, innerH);
@@ -2022,8 +2011,8 @@
         }
         var typed = parseInt(document.getElementById("mixOnPal").value, 10) || 16;
         var cap = Math.max(list.length, typed);
-        mixView = document.getElementById("btnFull").classList.contains("on") ? "full" : "pallet";
-        document.getElementById("palSize").value = "auto";
+        mixView = document.getElementById("btnFull").classList.contains("on") ? "full"
+          : document.getElementById("btnNest").classList.contains("on") ? "nest" : "pallet";
         var best = null;
         var tries = [];
         for (var k = list.length; k <= cap; k++) tries.push(k);
