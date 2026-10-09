@@ -1870,7 +1870,8 @@
           for (var c = 0; c < columns.length; c++) {
             var col = columns[c];
             if (s.d > col.d + 1e-6) continue;
-            var addH = s.h * 0.62;
+            var addH = s.h;
+            if (col.items.length) continue;
             if (col.h + addH > innerH + 1e-6) continue;
             col.items.push(s);
             col.h += addH;
@@ -1943,7 +1944,10 @@
           size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
         } else {
           var prop = proposeHalfSize();
-          size = { L: prop.L, W: prop.W, H: FACTORY_CRATE.H, name: "half " + prop.L + "×" + prop.W };
+          var maxPot = 20;
+          (stacks || []).forEach(function (s) { if (s.h > maxPot) maxPot = s.h; });
+          var boxH = Math.ceil(maxPot + 14);
+          size = { L: prop.L, W: prop.W, H: boxH, name: "half " + prop.L + "×" + prop.W + "×" + boxH };
         }
         var innerH = crateInnerH(size.H);
         var vol = packVolume(stacks, size.L, size.W, innerH);
@@ -2227,11 +2231,11 @@
             side: THREE.DoubleSide
           });
         }
-        if (pot && pot.band) {
+        if (pot && pot.map) {
           return new THREE.MeshStandardMaterial({
-            map: pot.band,
-            roughness: 0.62,
-            metalness: 0.04
+            map: pot.map,
+            roughness: 0.72,
+            metalness: 0.02
           });
         }
         var hex = (pot && pot.glaze) || fallback || 0xc4a574;
