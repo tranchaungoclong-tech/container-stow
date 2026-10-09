@@ -371,7 +371,8 @@
       <label class="drop" id="importMixPhotos">Import all photos<input type="file" accept="image/*" multiple /></label>
 
       <div class="step"><i>3</i> Pack that pallet</div>
-      <button type="button" class="start" id="startMix">Pack 16 on 1 pallet</button>
+      <button type="button" class="start" id="startMix">Pack 1 pallet</button>
+      <button type="button" class="start" id="packInto" style="margin-top:0;">Pack pallet vào container</button>
       <button type="button" class="ghost" id="showPalOut" style="width:100%;margin:-4px 0 10px;">Show 1 pallet outside</button>
       <div class="cards" id="mixCards"></div>
       <div class="propose" id="mixPropose">
@@ -2490,6 +2491,14 @@
       });
       setPalMode("auto");
       document.getElementById("startMix").onclick = runMix;
+      document.getElementById("packInto").onclick = function () {
+        if (!mixPlan) runMix();
+        if (!mixPlan) return;
+        mixContId = "40DC";
+        mixView = "cont";
+        paintMixCards();
+        rebuildMix();
+      };
       function syncMixBtn() {
         document.getElementById("startMix").textContent = "Pack fullest even mix";
       }
