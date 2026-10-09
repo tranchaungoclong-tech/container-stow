@@ -2423,9 +2423,15 @@
           while (g2.children.length > 2) potsOnly.push(g2.children.pop());
           potsOnly.forEach(function (m) {
             var hPot = m.isSprite ? m.scale.y : (m.geometry && m.geometry.parameters && m.geometry.parameters.h) || crate.H * 0.7;
+            var footY = m.position.y;
+            var cx = m.position.x;
+            var cz = m.position.z;
+            m.position.set(0, 0, 0);
             m.rotation.x = Math.PI;
-            m.position.y = m.position.y + hPot;
-            g2.add(m);
+            var holder = new THREE.Group();
+            holder.add(m);
+            holder.position.set(cx, footY + hPot, cz);
+            g2.add(holder);
           });
           g2.position.set(oxf, 0, 0);
           return;
@@ -2619,7 +2625,12 @@
       document.getElementById("btnHalf").onclick = function () {
         document.getElementById("btnHalf").classList.add("on");
         document.getElementById("btnFull").classList.remove("on");
-        if (mixPlan) rebuildMix();
+        document.getElementById("btnNest").classList.remove("on");
+        if (!mixPlan) return;
+        mixView = "pallet";
+        document.getElementById("halfCount").textContent = "HALF";
+        document.getElementById("halfWhy").textContent = "Một lớp. Mọi mã có mặt, miệng lên, không úp, không chồng.";
+        rebuildMix();
       };
       document.getElementById("btnFull").onclick = function () {
         document.getElementById("btnHalf").classList.remove("on");
