@@ -2412,7 +2412,7 @@
             mesh2.rotation.x = Math.PI;
             var hold2 = new THREE.Group();
             hold2.add(mesh2);
-            hold2.position.set(cx, y0 + hM2, cz);
+            hold2.position.set(cx, y0 + hM2 * (mesh2.isSprite ? 0.5 : 1), cz);
             g.add(hold2);
           });
         });
