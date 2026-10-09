@@ -1694,8 +1694,16 @@
         });
         var stacks = [];
         var nested = 0;
+        var flat = mixView === "pallet" || mixView === "full";
         units.forEach(function (pot) {
           var op = potPack(pot);
+          if (flat) {
+            stacks.push({
+              d: op.d, h: op.h, outer: pot, inner: null, inners: [], nested: false,
+              pack: isSet(pot) ? "set" : "mix"
+            });
+            return;
+          }
           var best = null;
           var bestSlack = 1e9;
           stacks.forEach(function (st) {
