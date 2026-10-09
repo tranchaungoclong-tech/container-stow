@@ -2243,17 +2243,19 @@
       }
       function drawPotMesh(pot, dM, hM, asCut) {
         if (pot && (pot.cutTex || pot.map)) {
-          var g0 = new THREE.Group();
           var mat0 = potMat(pot, 0xd8c4a0, true);
+          mat0.depthWrite = false;
           var w0 = Math.max(dM, 0.04);
           var h0 = Math.max(hM, 0.04);
-          var a = new THREE.Mesh(new THREE.PlaneGeometry(w0, h0), mat0);
-          a.position.y = h0 / 2;
-          var b = a.clone();
-          b.rotation.y = Math.PI / 2;
-          g0.add(a);
-          g0.add(b);
-          return g0;
+          var a = new THREE.Sprite(new THREE.SpriteMaterial({
+            map: mat0.map,
+            transparent: true,
+            alphaTest: 0.08,
+            depthWrite: false
+          }));
+          a.scale.set(w0, h0, 1);
+          a.center.set(0.5, 0);
+          return a;
         }
         if (asCut && looksLikeFigure(pot) && pot && (pot.cutTex || pot.map)) {
           var g = new THREE.Group();
