@@ -403,16 +403,6 @@
         <thead><tr><th>Item</th><th class="num">1 pallet</th><th class="num">20'GP</th><th class="num">40'GP</th><th class="num">40HC</th></tr></thead>
         <tbody id="mixBreak"></tbody>
       </table>
-      <div class="row">
-        <button type="button" class="chip on" id="btnHalf">Half pallet</button>
-        <button type="button" class="chip" id="btnFull">Full pallet</button>
-        <button type="button" class="chip" id="btnNest">Nest packaging</button>
-      </div>
-      <div class="propose" id="halfBox">
-        <div class="k">This pack</div>
-        <div class="v" id="halfCount">Pack first</div>
-        <div class="s" id="halfWhy">Half pallet is this mix. Full pallet waits for the next pack method.</div>
-      </div>
       <div class="acts">
         <button type="button" class="ghost" id="copyMix">Copy mix plan</button>
         <button type="button" class="ghost" id="shotMix">Save 3D PNG</button>
@@ -654,35 +644,6 @@
         }
         return { alpha: alpha, solid: solid, fill: fill, figure: fill < 0.60, glaze: glazeHex };
       }
-      function bandMap(cv) {
-        var w = cv.width, h = cv.height;
-        if (!w || !h) return null;
-        var src = cv.getContext("2d").getImageData(0, 0, w, h).data;
-        var out = document.createElement("canvas");
-        out.width = 8;
-        out.height = Math.min(128, h);
-        var g = out.getContext("2d");
-        var img = g.createImageData(out.width, out.height);
-        var d = img.data;
-        for (var y = 0; y < out.height; y++) {
-          var sy = Math.min(h - 1, Math.floor(y * h / out.height));
-          var r = 0, gg = 0, b = 0, n = 0;
-          var x0 = (w * 0.3) | 0, x1 = (w * 0.7) | 0;
-          for (var x = x0; x < x1; x += 2) {
-            var i = (sy * w + x) * 4;
-            if (src[i + 3] < 40) continue;
-            r += src[i]; gg += src[i + 1]; b += src[i + 2]; n++;
-          }
-          if (!n) { r = 196; gg = 165; b = 116; n = 1; }
-          r = (r / n) | 0; gg = (gg / n) | 0; b = (b / n) | 0;
-          for (var xx = 0; xx < out.width; xx++) {
-            var o = (y * out.width + xx) * 4;
-            d[o] = r; d[o + 1] = gg; d[o + 2] = b; d[o + 3] = 255;
-          }
-        }
-        g.putImageData(img, 0, 0);
-        return makeTex(out);
-      }
       function cropCarton(img) { return knockOutPhoto(img).solid; }
       function bakePhoto(img, target) {
         var cut = knockOutPhoto(img);
@@ -693,7 +654,6 @@
         target.cutFill = cut.fill;
         target.figure = !!cut.figure;
         target.glaze = cut.glaze || 0xc4a574;
-        target.band = bandMap(cut.alpha);
       }
       function applyPhoto(img, target, thumb, dropEl, onText) {
         bakePhoto(img, target);
@@ -1694,16 +1654,8 @@
         });
         var stacks = [];
         var nested = 0;
-        var flat = mixView === "full";
         units.forEach(function (pot) {
           var op = potPack(pot);
-          if (flat) {
-            stacks.push({
-              d: op.d, h: op.h, outer: pot, inner: null, inners: [], nested: false,
-              pack: isSet(pot) ? "set" : "mix"
-            });
-            return;
-          }
           var best = null;
           var bestSlack = 1e9;
           stacks.forEach(function (st) {
@@ -1746,7 +1698,7 @@
           id: src.id, name: src.name, belly: src.belly, rim: src.rim, base: src.base,
           h: src.h, qty: qty, pack: src.pack || "mix", on: true,
           dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect,
-          cutFill: src.cutFill, figure: src.figure, glaze: src.glaze, band: src.band
+          cutFill: src.cutFill, figure: src.figure, glaze: src.glaze
         };
       }
       function palletRecipe(list, nWant) {
@@ -1872,24 +1824,12 @@
         return Math.max(8, (Number(boxH) || FACTORY_CRATE.H) - DECK_CM);
       }
       function packVolume(stacks, L, W, innerH) {
-        var invertPair = mixView === "full";
         var remain = stacks.slice().sort(function (a, b) { return b.d - a.d || b.h - a.h; });
         var columns = [];
         remain.forEach(function (s) {
           var placed = false;
           for (var c = 0; c < columns.length; c++) {
             var col = columns[c];
-            if (col.items.length >= 2) continue;
-            var host = col.items[0] && col.items[0].outer;
-            var same = host && s.outer && host.id === s.outer.id;
-            if (!same) continue;
-            if (invertPair) {
-              col.items.push(s);
-              col.h = Math.max(col.h, s.h);
-              col.paired = true;
-              placed = true;
-              break;
-            }
             if (s.d > col.d + 1e-6) continue;
             var addH = s.h * 0.62;
             if (col.h + addH > innerH + 1e-6) continue;
@@ -1898,7 +1838,7 @@
             placed = true;
             break;
           }
-          if (!placed) columns.push({ d: s.d, h: s.h, items: [s], paired: false });
+          if (!placed) columns.push({ d: s.d, h: s.h, items: [s] });
         });
         var planeStacks = columns.map(function (col) {
           return { d: col.d, h: col.h, items: col.items, outer: col.items[0].outer, inner: col.items[0].inner, pack: col.items[0].pack };
@@ -1907,14 +1847,12 @@
         var leftoverCols = Math.max(0, planeStacks.length - hit.plane.placed.length);
         var leftoverPcs = leftoverCols;
         if (leftoverCols) leftoverPcs = leftoverCols;
-        var pairedCols = columns.filter(function (c) { return c.paired || c.items.length > 1; }).length;
         return {
           L: hit.L, W: hit.W,
           plane: hit.plane,
           columns: columns,
           leftover: leftoverCols,
           placedCols: hit.plane.placed.length,
-          pairedCols: pairedCols,
           levels: columns.reduce(function (m, c) { return Math.max(m, c.items.length); }, 1)
         };
       }
@@ -1944,39 +1882,20 @@
         });
         return map;
       }
-      function proposeHalfSize() {
-        var box = CONTAINERS[1];
-        var gap = BOARD_CM / 100;
-        var best = { L: 100, W: 78, waste: 1e9 };
-        [10, 11, 12].forEach(function (nx) {
-          [2, 3].forEach(function (ny) {
-            var L = Math.floor((box.L / nx - gap) * 100);
-            var W = Math.floor((box.W / ny - gap) * 100);
-            if (L < 80 || W < 70) return;
-            var waste = (box.L - nx * (L / 100 + gap)) + (box.W - ny * (W / 100 + gap));
-            if (waste < best.waste) best = { L: L, W: W, waste: waste, nx: nx, ny: ny };
-          });
-        });
-        return best;
-      }
       function fitPallet(stacks, boxH) {
         var size;
-        var maxPot = 20;
-        (stacks || []).forEach(function (s) { if (s.h > maxPot) maxPot = s.h; });
         if (palMode() === "custom") {
           var c = customPal();
           size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
         } else {
-          var prop = proposeHalfSize();
-          size = { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: "factory " + FACTORY_CRATE.L + "×" + FACTORY_CRATE.W + "×" + FACTORY_CRATE.H };
-          if (prop && prop.L && mixView === "cont") size = { L: prop.L, W: prop.W, H: FACTORY_CRATE.H, name: "half " + prop.L + "×" + prop.W };
+          size = { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: FACTORY_CRATE.name };
         }
         var innerH = crateInnerH(size.H);
         var vol = packVolume(stacks, size.L, size.W, innerH);
         return {
           L: vol.L, W: vol.W, H: size.H, name: size.name,
           area: size.L * size.W, plane: vol.plane, leftover: vol.leftover,
-          placed: vol.placedCols, levels: vol.levels, paired: vol.pairedCols || 0, innerH: innerH, boxH: size.H
+          placed: vol.placedCols, levels: vol.levels, innerH: innerH, boxH: size.H
         };
       }
       function crateOuter(pal) {
@@ -2000,6 +1919,8 @@
           var nx = Math.max(0, Math.floor((cont.L + 1e-9) / (cL + gap)));
           var ny = Math.max(0, Math.floor((cont.W + 1e-9) / (cW + gap)));
           var nz = Math.max(0, Math.floor((cont.H + 1e-9) / (crate.H + gap)));
+          if (crate.H <= 0.70 && nz > 2) nz = 2;
+          if (ny > 2) ny = 2;
           return { nx: nx, ny: ny, nz: nz, n: nx * ny * Math.max(nz, 0), cL: cL, cW: cW, rot: rot };
         }
         var a = layout(crate.L, crate.W, false);
@@ -2019,13 +1940,13 @@
           toast("Add a pottery item first");
           return;
         }
-        var typed = parseInt(document.getElementById("mixOnPal").value, 10) || 16;
-        var cap = Math.max(list.length, typed);
-        mixView = document.getElementById("btnFull").classList.contains("on") ? "full"
-          : document.getElementById("btnNest").classList.contains("on") ? "nest" : "pallet";
+        var typed = parseInt(document.getElementById("mixOnPal").value, 10);
+        var nWant = (typed > 0) ? Math.max(list.length, typed) : 0;
         var best = null;
-        var tries = [];
-        for (var k = list.length; k <= cap; k++) tries.push(k);
+        var tries = nWant ? [nWant] : [];
+        if (!nWant) {
+          for (var k = 1; k <= 8; k++) tries.push(list.length * k);
+        }
         tries.forEach(function (n) {
           var recipeTry = palletRecipe(list, n);
           var nestedTry = nestStacks(recipeTry.rows);
@@ -2033,15 +1954,9 @@
           var palTry = fitPallet(nestedTry.stacks);
           var perItemTry = countOnVolume(palTry.plane);
           var packed = 0;
-          var present = 0;
-          list.forEach(function (p) { if (perItemTry[p.id]) present += 1; });
           Object.keys(perItemTry).forEach(function (id) { packed += perItemTry[id]; });
-          if (packed > cap) return;
-          var missing = list.length - present;
-          var pairNeed = mixView === "full" ? Math.floor(typed / 2) : 0;
-          var paired = palTry.paired || 0;
-          var score = (missing ? -1000 - missing * 10 : 100) + present * 20 - Math.abs(cap - packed);
-          if (pairNeed) score += Math.min(paired, pairNeed) * 40 - Math.abs(pairNeed - paired) * 8;
+          var missing = list.filter(function (p) { return !perItemTry[p.id]; }).length;
+          var score = (missing ? -1000 : 0) + packed - (palTry.leftover || 0) * 5;
           if (!best || score > best.score) {
             best = { n: n, recipe: recipeTry, nested: nestedTry, pal: palTry, score: score, packed: packed, missing: missing };
           }
@@ -2051,7 +1966,7 @@
           toast("No items to pack");
           return;
         }
-        nWant = typed;
+        nWant = best.n;
         document.getElementById("mixOnPal").value = nWant;
         var recipe = best.recipe;
         var nested = best.nested;
@@ -2086,11 +2001,6 @@
         var fit20 = palletsInCont(CONTAINERS[0], crate);
         var fit40 = palletsInCont(CONTAINERS[1], crate);
         var fitHC = palletsInCont(CONTAINERS[2], crate);
-        var halfN = fit40.n;
-        document.getElementById("halfCount").textContent = halfN + " HALF PALLET";
-        document.getElementById("halfWhy").textContent =
-          "40'GP holds " + halfN + " of this half pallet (" + pal.L + "×" + pal.W + "×" + pal.H + "). " +
-          "20' " + fit20.n + " · 40HC " + fitHC.n + ". Empty deck can take a snail or bird if Base ≤ Rim. Full pallet is not this pack.";
         document.getElementById("mixProposeSize").textContent = pal.L + " × " + pal.W + " × " + pal.H + " cm";
         document.getElementById("mixProposeWhy").textContent =
           (palMode() === "auto" ? "Factory crate: " : "Customer crate: ") +
@@ -2259,9 +2169,9 @@
             side: THREE.DoubleSide
           });
         }
-        if (pot && pot.map) {
+        if (pot && pot.cutTex) {
           return new THREE.MeshStandardMaterial({
-            map: pot.map,
+            map: pot.cutTex,
             roughness: 0.72,
             metalness: 0.02
           });
@@ -2270,21 +2180,6 @@
         return new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55, metalness: 0.04 });
       }
       function drawPotMesh(pot, dM, hM, asCut) {
-        if (pot && (pot.cutTex || pot.map)) {
-          var mat0 = potMat(pot, 0xd8c4a0, true);
-          mat0.depthWrite = false;
-          var w0 = Math.max(dM, 0.04);
-          var h0 = Math.max(hM, 0.04);
-          var a = new THREE.Sprite(new THREE.SpriteMaterial({
-            map: mat0.map,
-            transparent: true,
-            alphaTest: 0.08,
-            depthWrite: false
-          }));
-          a.scale.set(w0, h0, 1);
-          a.center.set(0.5, 0);
-          return a;
-        }
         if (asCut && looksLikeFigure(pot) && pot && (pot.cutTex || pot.map)) {
           var g = new THREE.Group();
           var mat = potMat(pot, 0xd8c4a0, true);
@@ -2421,26 +2316,11 @@
             addPotAt(s.outer, dM, hM, base, false);
             return hM;
           }
-          if (mixView === "full") {
-            items.forEach(function (s, i) {
-              if (i === 0) { drawStack(s, 0); return; }
-              var dM2 = s.d / 100;
-              var hM2 = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
-              var mesh2 = drawPotMesh(s.outer, dM2, hM2, false);
-              mesh2.position.set(0, hM2, 0);
-              mesh2.rotation.x = Math.PI;
-              var hold2 = new THREE.Group();
-              hold2.add(mesh2);
-              hold2.position.set(cx, y0, cz);
-              g.add(hold2);
-            });
-          } else {
-            var lift = 0;
-            items.forEach(function (s, i) {
-              var used = drawStack(s, lift);
-              lift += i === 0 ? used : used * 0.62;
-            });
-          }
+          var lift = 0;
+          items.forEach(function (s, i) {
+            var used = drawStack(s, lift);
+            lift += i === 0 ? used : used * 0.62;
+          });
         });
         g.position.set(ox, oy, oz);
         root.add(g);
@@ -2454,27 +2334,6 @@
         drawShell(cont);
         if (!mixPlan || !mixPlan.per) return;
         var crate = mixPlan.crate;
-        if (mixView === "full") {
-          var oxf = cont.L + 0.95;
-          drawOneCrate(crate, mixPlan.plane, oxf, 0, 0);
-          return;
-        }
-        if (mixView === "nest") {
-          var oxn = cont.L + 0.95;
-          drawOneCrate(crate, mixPlan.plane, oxn, 0, 0);
-          var deck = root.children[root.children.length - 1];
-          var step = Math.max(0.04, crate.H * 0.22);
-          for (var layer = 1; layer <= 4; layer++) {
-            deck.children.forEach(function (ch) {
-              if (!ch.isMesh && !ch.isSprite) return;
-              var cpy = ch.clone();
-              cpy.position.y = ch.position.y + layer * step;
-              if (layer % 2 === 1) cpy.rotation.x = Math.PI;
-              deck.add(cpy);
-            });
-          }
-          return;
-        }
         if (mixView !== "cont") {
           var ox = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
@@ -2491,8 +2350,7 @@
         var asked = parseInt(document.getElementById("pltShow").value, 10);
         if (!(asked > 0)) asked = fit.n;
         var want = Math.min(fit.n, asked, 80);
-        var halfHigh = Math.min(2, fit.nz);
-        for (var iz = 0; iz < halfHigh; iz++) {
+        for (var iz = 0; iz < fit.nz; iz++) {
           for (var ix = 0; ix < fit.nx; ix++) {
             for (var iy = 0; iy < fit.ny; iy++) {
               if (shown >= want) return;
@@ -2645,37 +2503,6 @@
       });
       setPalMode("auto");
       document.getElementById("startMix").onclick = runMix;
-      document.getElementById("btnHalf").onclick = function () {
-        document.getElementById("btnHalf").classList.add("on");
-        document.getElementById("btnFull").classList.remove("on");
-        document.getElementById("btnNest").classList.remove("on");
-        if (!mixPlan) return;
-        mixView = "pallet";
-        document.getElementById("halfCount").textContent = "HALF";
-        document.getElementById("halfWhy").textContent = "Một lớp. Mọi mã có mặt, miệng lên, không úp, không chồng.";
-        rebuildMix();
-      };
-      document.getElementById("btnFull").onclick = function () {
-        document.getElementById("btnHalf").classList.remove("on");
-        document.getElementById("btnFull").classList.add("on");
-        if (!mixPlan) runMix();
-        if (!mixPlan) return;
-        mixView = "full";
-        document.getElementById("halfCount").textContent = "FULL PALLET";
-        document.getElementById("halfWhy").textContent = "Outdoor. Hàng 1 miệng lên. Hàng 2 đít đối đít để hẹp bề ngang và cân. Cùng mix với half, không thêm item.";
-        rebuildMix();
-      };
-      document.getElementById("btnNest").onclick = function () {
-        document.getElementById("btnHalf").classList.remove("on");
-        document.getElementById("btnFull").classList.remove("on");
-        document.getElementById("btnNest").classList.add("on");
-        if (!mixPlan) runMix();
-        if (!mixPlan) return;
-        mixView = "nest";
-        document.getElementById("halfCount").textContent = "NEST";
-        document.getElementById("halfWhy").textContent = "Một mã. Úp lồng thành cột trên pallet, rồi bọc như half khi vào container.";
-        rebuildMix();
-      };
       document.getElementById("packInto").onclick = function () {
         if (!mixPlan) runMix();
         if (!mixPlan) return;
