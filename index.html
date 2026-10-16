@@ -168,6 +168,11 @@
     .pot { border: 1px solid var(--line); padding: 10px; margin-bottom: 8px; background: rgba(255,255,255,.03); }
     .pot .head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
     .qty-row { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 8px; align-items: end; margin-bottom: 8px; }
+    .opt-row.on td { color: #f3ead8; }
+    .opt-row td { cursor: default; }
+    .gap-w { color: #ff9a3c; }
+    .gap-l { color: #e8c547; }
+    .gap-h { color: #5ad4e8; }
     .pack-toggle { display: flex; gap: 4px; }
     .pack-toggle .chip { flex: 1; text-align: center; padding: 8px 6px; min-height: 36px; }
     .mix-hero { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: end; margin: 0 0 8px; }
@@ -422,8 +427,20 @@
         <thead><tr><th>Item</th><th class="num">1 pallet</th><th class="num">20'GP</th><th class="num">40'GP</th><th class="num">40HC</th></tr></thead>
         <tbody id="mixBreak"></tbody>
       </table>
+      <div class="sec">Load options · width first</div>
+      <p class="hint" style="margin:-2px 0 6px;">Same pallet, two floor rotates. Pick the one with more rows across 2.35 m, then more PLT. Gold leftover = length, orange = width (can insert a row), cyan = height.</p>
+      <table>
+        <thead><tr><th>Option</th><th class="num">Grid</th><th class="num">PLT</th><th class="num">Across</th><th>Leftover</th><th>Note</th></tr></thead>
+        <tbody id="mixOpts"></tbody>
+      </table>
+      <div class="sec">Load report</div>
+      <table>
+        <thead><tr><th>Box</th><th class="num">CBM</th><th class="num">Util</th><th class="num">PLT</th><th class="num">Layers</th><th class="num">kg / payload</th><th>Note</th></tr></thead>
+        <tbody id="mixReport"></tbody>
+      </table>
       <div class="acts">
         <button type="button" class="ghost" id="copyMix">Copy mix plan</button>
+        <button type="button" class="ghost" id="copyMixReport">Copy report</button>
         <button type="button" class="ghost" id="shotMix">Save 3D PNG</button>
         <button type="button" class="ghost" id="saveMix">Save this mix</button>
         <button type="button" class="ghost" id="loadMix">Load last mix</button>
@@ -715,7 +732,7 @@
           if (mode === "mix") {
             while (pots.length < shots.length) {
               potUid += 1;
-              pots.push({ id: "p" + potUid, name: "Pot " + potUid, belly: 20, rim: 18, base: 12, h: 20, qty: 12, pack: "mix", on: true, dataUrl: null, map: null });
+              pots.push({ id: "p" + potUid, name: "Pot " + potUid, belly: 20, rim: 18, base: 12, h: 20, qty: 12, kg: 0, pack: "mix", on: true, dataUrl: null, map: null });
             }
             shots.forEach(function (shot, i) {
               var p = pots[i];
@@ -1587,8 +1604,8 @@
       var BOARD_CM = 1;
       var potUid = 2;
       var pots = [
-        { id: "p1", name: "Pot A", belly: 32, rim: 28, base: 18, h: 28, qty: 24, pack: "mix", on: true, dataUrl: null, map: null },
-        { id: "p2", name: "Pot B", belly: 24, rim: 22, base: 14, h: 22, qty: 24, pack: "mix", on: true, dataUrl: null, map: null }
+        { id: "p1", name: "Pot A", belly: 32, rim: 28, base: 18, h: 28, qty: 24, kg: 0, pack: "mix", on: true, dataUrl: null, map: null },
+        { id: "p2", name: "Pot B", belly: 24, rim: 22, base: 14, h: 22, qty: 24, kg: 0, pack: "mix", on: true, dataUrl: null, map: null }
       ];
       var mixPlan = null;
       var mixContId = "40DC";
@@ -1727,7 +1744,7 @@
       function clonePot(src, qty) {
         return {
           id: src.id, name: src.name, belly: src.belly, rim: src.rim, base: src.base,
-          h: src.h, qty: qty, pack: src.pack || "mix", on: true,
+          h: src.h, qty: qty, kg: Number(src.kg) || 0, pack: src.pack || "mix", on: true,
           dataUrl: src.dataUrl, map: src.map, cutTex: src.cutTex, cutAspect: src.cutAspect,
           cutFill: src.cutFill, figure: src.figure, glaze: src.glaze
         };
@@ -2001,14 +2018,71 @@
         }
         var a = layout(crate.L, crate.W, false);
         var b = layout(crate.W, crate.L, true);
-        if (b.n > a.n) return b;
-        if (b.n === a.n && (b.gapL + b.gapW + b.gapH) < (a.gapL + a.gapW + a.gapH)) return b;
-        return a;
+        function better(x, y) {
+          if (x.n !== y.n) return x.n - y.n;
+          if (x.ny !== y.ny) return x.ny - y.ny;
+          return (y.gapL + y.gapW + y.gapH) - (x.gapL + x.gapW + x.gapH);
+        }
+        return better(b, a) > 0 ? b : a;
+      }
+      function bothLayouts(cont, crate) {
+        var gap = BOARD_CM / 100;
+        function layout(cL, cW, rot) {
+          var nx = Math.max(0, Math.floor((cont.L + gap + 1e-9) / (cL + gap)));
+          var ny = Math.max(0, Math.floor((cont.W + gap + 1e-9) / (cW + gap)));
+          var nz = Math.max(0, Math.floor((cont.H + gap + 1e-9) / (crate.H + gap)));
+          var usedL = nx > 0 ? nx * cL + Math.max(0, nx - 1) * gap : 0;
+          var usedW = ny > 0 ? ny * cW + Math.max(0, ny - 1) * gap : 0;
+          var usedH = nz > 0 ? nz * crate.H + Math.max(0, nz - 1) * gap : 0;
+          if (usedL > cont.L + 1e-9) { nx = Math.max(0, nx - 1); usedL = nx > 0 ? nx * cL + Math.max(0, nx - 1) * gap : 0; }
+          if (usedW > cont.W + 1e-9) { ny = Math.max(0, ny - 1); usedW = ny > 0 ? ny * cW + Math.max(0, ny - 1) * gap : 0; }
+          if (usedH > cont.H + 1e-9) { nz = Math.max(0, nz - 1); usedH = nz > 0 ? nz * crate.H + Math.max(0, nz - 1) * gap : 0; }
+          return {
+            nx: nx, ny: ny, nz: nz, n: nx * ny * Math.max(nz, 0),
+            cL: cL, cW: cW, rot: rot,
+            gapL: Math.max(0, cont.L - usedL),
+            gapW: Math.max(0, cont.W - usedW),
+            gapH: Math.max(0, cont.H - usedH),
+            usedL: usedL, usedW: usedW, usedH: usedH
+          };
+        }
+        return [
+          layout(crate.L, crate.W, false),
+          layout(crate.W, crate.L, true)
+        ];
       }
       function leftoverMm(fit) {
         if (!fit) return "";
         function mm(m) { return Math.round(m * 1000); }
         return "leftover L " + mm(fit.gapL) + " · W " + mm(fit.gapW) + " · H " + mm(fit.gapH) + " mm";
+      }
+      function kgOnPallet(perItem) {
+        var kg = 0;
+        enabledPots().forEach(function (p) {
+          kg += (Number(p.kg) || 0) * (perItem[p.id] || 0);
+        });
+        return kg;
+      }
+      function crateCbm(crate, n) {
+        return (crate.L * crate.W * crate.H) * Math.max(0, n);
+      }
+      function utilPct(cbm, cont) {
+        var box = cont.L * cont.W * cont.H;
+        if (!(box > 0)) return 0;
+        return Math.round((cbm / box) * 1000) / 10;
+      }
+      function loadNote(fit, fill, kg, cont) {
+        var bits = [];
+        if (fit.ny >= 2) bits.push(fit.ny + " across");
+        else bits.push("1 across");
+        if (fit.gapW >= 0.20) bits.push("W leftover can take a row");
+        if (fit.gapL >= 0.20) bits.push("L leftover can take a bay");
+        if (fit.gapH >= 0.20) bits.push("H leftover on top");
+        if (fill) bits.push("fill " + fill.sz.L + "×" + fill.sz.W);
+        if (kg > 0 && kg > cont.payload) bits.push("OVERLOAD");
+        else if (kg > 0 && kg > cont.payload * 0.9) bits.push("near payload");
+        if (!kg) bits.push("kg not typed");
+        return bits.join(" · ");
       }
       function layoutInPocket(boxL, boxW, boxH, cL, cW, cH) {
         var gap = BOARD_CM / 100;
@@ -2233,7 +2307,7 @@
           document.getElementById("mixStamp").textContent = "GO";
           document.getElementById("mixWhy").textContent = nWant + " pcs on 1 crate " + pal.L + "×" + pal.W + "×" + pal.H + " · nest + stack " + highTxt + " · " + acrossTxt + " · " + fit40.n + " PLT on 40'GP.";
         }
-        paintMixFill();
+        refreshMixTables();
         rebuildMix();
       }
       function fillForCont(c) {
@@ -2285,6 +2359,81 @@
         fillRow.innerHTML = "<td>Fill leftover</td><td class='num'>one other size</td>" + fillCells;
         host.appendChild(fillRow);
       }
+      function paintMixOpts() {
+        var host = document.getElementById("mixOpts");
+        host.innerHTML = "";
+        if (!mixPlan || !mixPlan.per) {
+          host.innerHTML = "<tr><td colspan='6'>Pack pallet into container</td></tr>";
+          return;
+        }
+        var cont = contById(mixContId);
+        var crate = mixPlan.crate;
+        var chosen = palletsInCont(cont, crate);
+        var lays = bothLayouts(cont, crate);
+        lays.sort(function (a, b) {
+          if (b.ny !== a.ny) return b.ny - a.ny;
+          if (b.n !== a.n) return b.n - a.n;
+          return (a.gapL + a.gapW + a.gapH) - (b.gapL + b.gapW + b.gapH);
+        });
+        lays.forEach(function (lay, i) {
+          var fill = proposeFill(cont, lay);
+          var isOn = Math.abs(lay.cL - chosen.cL) < 1e-9 && Math.abs(lay.cW - chosen.cW) < 1e-9 && lay.rot === chosen.rot;
+          var tag = lay.rot ? "rotate floor" : "as typed";
+          if (isOn) tag = "using · " + tag;
+          else if (i === 0) tag = "width-first pick";
+          else tag = "alt rotate";
+          var note = [];
+          if (lay.ny >= 2) note.push(lay.ny + " across 2.35 m");
+          else note.push("only 1 across");
+          if (!isOn && lay.n > chosen.n) note.push("more PLT than current");
+          if (!isOn && lay.ny > chosen.ny) note.push("more rows across");
+          if (fill) note.push("then fill " + fill.sz.L + "×" + fill.sz.W);
+          var tr = document.createElement("tr");
+          if (isOn) tr.className = "opt-row on";
+          tr.innerHTML =
+            "<td>" + tag + "</td>" +
+            "<td class='num'>" + lay.nx + "×" + lay.ny + "×" + lay.nz + "</td>" +
+            "<td class='num'>" + lay.n + (fill ? " + " + fill.n : "") + "</td>" +
+            "<td class='num'>" + lay.ny + "</td>" +
+            "<td>" + leftoverMm(lay) + "</td>" +
+            "<td>" + note.join(" · ") + "</td>";
+          host.appendChild(tr);
+        });
+      }
+      function paintMixReport() {
+        var host = document.getElementById("mixReport");
+        host.innerHTML = "";
+        if (!mixPlan || !mixPlan.per) {
+          host.innerHTML = "<tr><td colspan='7'>Pack pallet into container</td></tr>";
+          return;
+        }
+        var palKg = kgOnPallet(mixPlan.perItem);
+        CONTAINERS.forEach(function (c) {
+          var fit = palletsInCont(c, mixPlan.crate);
+          var fill = proposeFill(c, fit);
+          var nMain = fit.n;
+          var nFill = fill ? fill.n : 0;
+          var cbm = crateCbm(mixPlan.crate, nMain) + (fill ? crateCbm(fill.crate, nFill) : 0);
+          var util = utilPct(cbm, c);
+          var kg = palKg * nMain + (fill ? kgOnPallet(fill.pcsMap) * nFill : 0);
+          var kgTxt = palKg > 0
+            ? Math.round(kg) + " / " + c.payload
+            : "— / " + c.payload;
+          var kgClass = palKg > 0 && kg > c.payload ? "bad" : (palKg > 0 && kg > c.payload * 0.9 ? "tight" : "ok");
+          var layers = fit.nz + (fill && fill.slots && fill.slots[0] ? " + fill" : "");
+          var tr = document.createElement("tr");
+          if (c.id === mixContId) tr.className = "opt-row on";
+          tr.innerHTML =
+            "<td>" + c.aka + "</td>" +
+            "<td class='num'>" + cbm.toFixed(1) + "</td>" +
+            "<td class='num'>" + util.toFixed(1) + "%</td>" +
+            "<td class='num'>" + nMain + (nFill ? " + " + nFill : "") + "</td>" +
+            "<td class='num'>" + layers + "</td>" +
+            "<td class='num " + kgClass + "'>" + kgTxt + "</td>" +
+            "<td>" + loadNote(fit, fill, kg, c) + "</td>";
+          host.appendChild(tr);
+        });
+      }
       function paintMixCards() {
         var host = document.getElementById("mixCards");
         host.innerHTML = "";
@@ -2303,9 +2452,7 @@
           btn.onclick = function () {
             mixContId = c.id;
             mixView = "cont";
-            paintMixCards();
-            paintMixFill();
-            paintMixBreak();
+            refreshMixTables();
             rebuildMix();
           };
           host.appendChild(btn);
@@ -2328,6 +2475,7 @@
           "</div>" +
           "<div class='qty-row'>" +
             "<label class='field'><span>H cm</span><input type='number' step='0.1' min='0.1' data-k='h' /></label>" +
+            "<label class='field'><span>kg / pc</span><input type='number' step='0.1' min='0' data-k='kg' /></label>" +
             "<label class='field'><span>Pack</span>" +
               "<div class='pack-toggle' data-k='pack'>" +
                 "<button type='button' class='chip' data-pack='mix'>Mix</button>" +
@@ -2342,6 +2490,7 @@
         wrap.querySelector("[data-k=rim]").value = p.rim;
         wrap.querySelector("[data-k=base]").value = p.base;
         wrap.querySelector("[data-k=h]").value = p.h;
+        wrap.querySelector("[data-k=kg]").value = Number(p.kg) || 0;
         wrap.querySelector("[data-k=on]").checked = p.on;
         if (!p.pack) p.pack = "mix";
         function syncPackUi() {
@@ -2392,8 +2541,15 @@
       }
       function addPot() {
         potUid += 1;
-        pots.push({ id: "p" + potUid, name: "Pot " + potUid, belly: 20, rim: 18, base: 12, h: 20, qty: 12, pack: "mix", on: true, dataUrl: null, map: null });
+        pots.push({ id: "p" + potUid, name: "Pot " + potUid, belly: 20, rim: 18, base: 12, h: 20, qty: 12, kg: 0, pack: "mix", on: true, dataUrl: null, map: null });
         paintPots();
+      }
+      function refreshMixTables() {
+        paintMixCards();
+        paintMixFill();
+        paintMixBreak();
+        paintMixOpts();
+        paintMixReport();
       }
       function woodMat(hex) {
         return new THREE.MeshStandardMaterial({ color: hex || 0xc4a06a, roughness: 0.88, metalness: 0.02 });
@@ -2693,24 +2849,38 @@
               }
             }
             if (lay.gapW > 0.002) {
-              slab(pk.ox + lay.usedL / 2, cont.H / 2, pk.oz0 + lay.usedW + lay.gapW / 2, Math.max(lay.usedL, 0.2), cont.H, lay.gapW, 0xc45c12, 0.28);
+              slab(pk.ox + lay.usedL / 2, cont.H / 2, pk.oz0 + lay.usedW + lay.gapW / 2, Math.max(lay.usedL, 0.2), cont.H, lay.gapW, 0xff6a00, 0.42);
             }
             if (lay.gapL > 0.002) {
-              slab(pk.ox + lay.usedL + lay.gapL / 2, cont.H / 2, pk.oz0 + pk.boxW / 2, lay.gapL, cont.H, Math.max(pk.boxW, 0.2), 0xc45c12, 0.22);
+              slab(pk.ox + lay.usedL + lay.gapL / 2, cont.H / 2, pk.oz0 + pk.boxW / 2, lay.gapL, cont.H, Math.max(pk.boxW, 0.2), 0xe8c547, 0.38);
             }
           });
         }
+        function gapTag(txt, x, y, z) {
+          var spr = makeLabel(txt);
+          spr.position.set(x, y, z);
+          root.add(spr);
+        }
         if (!filledW && fit.gapW > 0.002) {
-          slab(fit.usedL / 2, cont.H / 2, -cont.W / 2 + fit.usedW + fit.gapW / 2, Math.max(fit.usedL, 0.2), cont.H, fit.gapW, 0xc45c12, 0.32);
+          slab(fit.usedL / 2, cont.H / 2, -cont.W / 2 + fit.usedW + fit.gapW / 2, Math.max(fit.usedL, 0.2), cont.H, fit.gapW, 0xff6a00, 0.42);
+          gapTag("W leftover " + Math.round(fit.gapW * 1000) + " mm", fit.usedL / 2, cont.H + 0.38, -cont.W / 2 + fit.usedW + fit.gapW / 2);
         }
         if (fit.gapH > 0.004) {
-          slab(fit.usedL / 2, fit.usedH + fit.gapH / 2, -cont.W / 2 + fit.usedW / 2, Math.max(fit.usedL, 0.2), fit.gapH, Math.max(fit.usedW, 0.2), 0x3d8ea8, 0.22);
+          slab(fit.usedL / 2, fit.usedH + fit.gapH / 2, -cont.W / 2 + fit.usedW / 2, Math.max(fit.usedL, 0.2), fit.gapH, Math.max(fit.usedW, 0.2), 0x2ec8e0, 0.4);
+          gapTag("H leftover " + Math.round(fit.gapH * 1000) + " mm", fit.usedL / 2, fit.usedH + fit.gapH + 0.22, 0);
         }
         if (!filledL && fit.gapL > 0.002) {
-          slab(fit.usedL + fit.gapL / 2, cont.H / 2, 0, fit.gapL, cont.H, cont.W, 0xc45c12, 0.22);
+          slab(fit.usedL + fit.gapL / 2, cont.H / 2, 0, fit.gapL, cont.H, cont.W, 0xe8c547, 0.36);
+          gapTag("L leftover " + Math.round(fit.gapL * 1000) + " mm", fit.usedL + fit.gapL / 2, cont.H + 0.38, 0);
         }
         var labTxt = fit.n + " × " + mixPlan.pal.L + "×" + mixPlan.pal.W + "  " + leftoverMm(fit);
         if (fill) labTxt += "  + fill " + fill.n + " × " + fill.sz.L + "×" + fill.sz.W + "  total " + (fit.n * mixPlan.per + fill.extra) + " pcs";
+        var palKg = kgOnPallet(mixPlan.perItem);
+        if (palKg > 0) {
+          var totKg = palKg * fit.n + (fill ? kgOnPallet(fill.pcsMap) * fill.n : 0);
+          labTxt += "  " + Math.round(totKg) + " kg / " + cont.payload;
+          if (totKg > cont.payload) labTxt += " OVERLOAD";
+        }
         var leftLab = makeLabel(labTxt);
         leftLab.position.set(cont.L / 2, cont.H + 0.88, 0);
         root.add(leftLab);
@@ -2728,8 +2898,7 @@
           : "Load planner · internal (inside) dims, not exterior";
         if (mix) {
           paintPots();
-          paintMixCards();
-          paintMixBreak();
+          refreshMixTables();
           if (mixPlan) rebuildMix();
           else {
             while (root.children.length) root.children.pop();
@@ -2771,6 +2940,50 @@
           });
           lines.push(row);
         });
+        lines.push("");
+        lines.push("LOAD REPORT");
+        CONTAINERS.forEach(function (c) {
+          var fit = palletsInCont(c, crate);
+          var fill = proposeFill(c, fit);
+          var nMain = fit.n;
+          var nFill = fill ? fill.n : 0;
+          var cbm = crateCbm(crate, nMain) + (fill ? crateCbm(fill.crate, nFill) : 0);
+          var kg = kgOnPallet(mixPlan.perItem) * nMain + (fill ? kgOnPallet(fill.pcsMap) * nFill : 0);
+          var kgBit = kgOnPallet(mixPlan.perItem) > 0 ? Math.round(kg) + " kg / " + c.payload : "kg not typed / " + c.payload;
+          lines.push(c.aka + " · CBM " + cbm.toFixed(1) + " · util " + utilPct(cbm, c).toFixed(1) + "% · PLT " + nMain + (nFill ? " + " + nFill : "") + " · layers " + fit.nz + " · " + kgBit + " · " + loadNote(fit, fill, kg, c));
+          var alts = bothLayouts(c, crate);
+          alts.forEach(function (lay) {
+            var tag = lay.rot ? "rotate" : "as typed";
+            lines.push("  " + tag + " · " + lay.nx + "×" + lay.ny + "×" + lay.nz + " = " + lay.n + " PLT · " + lay.ny + " across · " + leftoverMm(lay));
+          });
+        });
+        return lines.join("\n");
+      }
+      function mixReportText() {
+        if (!mixPlan || !mixPlan.per) return "Mix Loading — pack 1 pallet first.";
+        var pal = mixPlan.pal;
+        var lines = [];
+        lines.push("MIX LOAD REPORT");
+        lines.push("Main pallet " + pal.L + " × " + pal.W + " × " + pal.H + " cm · " + mixPlan.per + " pcs / PLT · " + mixPlan.levels + " high · " + (mixStack === "invert" ? "base to base" : "mouth up"));
+        lines.push(mixPlan.recipe.split.join(" + "));
+        CONTAINERS.forEach(function (c) {
+          var fit = palletsInCont(c, mixPlan.crate);
+          var fill = proposeFill(c, fit);
+          var nMain = fit.n;
+          var nFill = fill ? fill.n : 0;
+          var cbm = crateCbm(mixPlan.crate, nMain) + (fill ? crateCbm(fill.crate, nFill) : 0);
+          var kg = kgOnPallet(mixPlan.perItem) * nMain + (fill ? kgOnPallet(fill.pcsMap) * nFill : 0);
+          var kgBit = kgOnPallet(mixPlan.perItem) > 0 ? Math.round(kg) + " / " + c.payload + " kg" : "kg not typed / " + c.payload;
+          lines.push("");
+          lines.push(c.aka);
+          lines.push("CBM " + cbm.toFixed(1) + " · util " + utilPct(cbm, c).toFixed(1) + "%");
+          lines.push("PLT " + nMain + (nFill ? " + fill " + nFill + " × " + fill.sz.L + "×" + fill.sz.W : "") + " · layers " + fit.nz);
+          lines.push("kg " + kgBit);
+          lines.push(loadNote(fit, fill, kg, c));
+          bothLayouts(c, mixPlan.crate).forEach(function (lay) {
+            lines.push((lay.rot ? "alt rotate" : "as typed") + " " + lay.nx + "×" + lay.ny + "×" + lay.nz + " = " + lay.n + " PLT · " + leftoverMm(lay));
+          });
+        });
         return lines.join("\n");
       }
       function copyOut(txt, ok) {
@@ -2782,6 +2995,7 @@
         }
       }
       document.getElementById("copyMix").onclick = function () { copyOut(mixText(), "Mix plan copied"); };
+      document.getElementById("copyMixReport").onclick = function () { copyOut(mixReportText(), "Load report copied"); };
       document.getElementById("shotMix").onclick = function () {
         renderer.render(scene, camera);
         var a = document.createElement("a");
@@ -2792,7 +3006,7 @@
       };
       document.getElementById("saveMix").onclick = function () {
         var dump = pots.map(function (p) {
-          return { id: p.id, name: p.name, belly: p.belly, rim: p.rim, base: p.base, h: p.h, qty: p.qty, pack: p.pack, on: p.on };
+          return { id: p.id, name: p.name, belly: p.belly, rim: p.rim, base: p.base, h: p.h, qty: p.qty, kg: Number(p.kg) || 0, pack: p.pack, on: p.on };
         });
         try {
           localStorage.setItem("her-stow-mix", JSON.stringify({
@@ -2820,7 +3034,7 @@
             pots = job.pots.map(function (p, i) {
               return {
                 id: p.id || ("p" + (i + 1)), name: p.name, belly: p.belly, rim: p.rim, base: p.base,
-                h: p.h, qty: Math.max(1, p.qty | 0), pack: p.pack || "mix", on: p.on !== false,
+                h: p.h, qty: Math.max(1, p.qty | 0), kg: Number(p.kg) || 0, pack: p.pack || "mix", on: p.on !== false,
                 dataUrl: null, map: null
               };
             });
@@ -2871,7 +3085,7 @@
         runMix();
         if (keep === "cont") {
           mixView = "cont";
-          paintMixCards();
+          refreshMixTables();
           rebuildMix();
         }
       }
@@ -2884,9 +3098,7 @@
         if (!mixPlan) return;
         mixContId = "40DC";
         mixView = "cont";
-        paintMixCards();
-        paintMixFill();
-        paintMixBreak();
+        refreshMixTables();
         rebuildMix();
       };
       document.getElementById("pltShow").addEventListener("change", function () {
