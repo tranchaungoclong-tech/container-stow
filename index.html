@@ -2234,7 +2234,7 @@
         var hex = (pot && pot.glaze) || fallback || 0xc4a574;
         return new THREE.MeshStandardMaterial({ color: hex, roughness: 0.55, metalness: 0.04 });
       }
-      function drawPotMesh(pot, dM, hM, asCut) {
+      function drawPotMesh(pot, dM, hM, asCut, closeFoot) {
         if (asCut && looksLikeFigure(pot) && pot && (pot.cutTex || pot.map)) {
           var g = new THREE.Group();
           var mat = potMat(pot, 0xd8c4a0, true);
@@ -2260,10 +2260,30 @@
           new THREE.Vector2(0.004, 0.004)
         ];
         var geo = new THREE.LatheGeometry(pts, 28);
-        var m = new THREE.Mesh(geo, potMat(pot, 0xd8c4a0, false));
+        var matBody = potMat(pot, 0xd8c4a0, false);
+        var m = new THREE.Mesh(geo, matBody);
         m.castShadow = true;
         m.receiveShadow = true;
-        return m;
+        if (!closeFoot) return m;
+        var hold = new THREE.Group();
+        hold.add(m);
+        var plugH = Math.max(0.01, hM * 0.05);
+        var plug = new THREE.Mesh(
+          new THREE.CylinderGeometry(r * 0.50, r * 0.42, plugH, 28),
+          matBody
+        );
+        plug.position.y = plugH / 2;
+        plug.castShadow = true;
+        hold.add(plug);
+        var cap = new THREE.Mesh(new THREE.CircleGeometry(r * 0.50, 28), matBody);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.y = 0.0005;
+        hold.add(cap);
+        var capDown = cap.clone();
+        capDown.rotation.x = Math.PI / 2;
+        capDown.position.y = -0.0005;
+        hold.add(capDown);
+        return hold;
       }
       function drawPalletDeck(crate) {
         var g = new THREE.Group();
@@ -2326,7 +2346,7 @@
           var cz = -crate.W / 2 + crate.wood + pl.y / 100;
           var y0 = crate.deck;
           function addPotAt(pot, d, h, lift, asCut, ox, oz, flip) {
-            var mesh = drawPotMesh(pot, d, h, asCut);
+            var mesh = drawPotMesh(pot, d, h, asCut, !!flip || mixStack === "invert");
             if (flip) {
               mesh.rotation.x = Math.PI;
               mesh.position.set(cx + (ox || 0), y0 + lift + h, cz + (oz || 0));
@@ -2382,8 +2402,10 @@
               var dM = s.d / 100;
               var hM = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
               var flip = (si % 2 === 0);
-              addPotAt(s.outer, dM, hM, liftInv, looksLikeFigure(s.outer), 0, 0, flip);
-              liftInv += hM;
+              var y = liftInv;
+              if (!flip && si > 0) y -= Math.min(0.014, hM * 0.05);
+              addPotAt(s.outer, dM, hM, y, looksLikeFigure(s.outer), 0, 0, flip);
+              liftInv = y + hM;
             });
           } else {
             var lift = 0;
