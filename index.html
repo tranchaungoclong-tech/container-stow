@@ -375,7 +375,7 @@
         <button type="button" class="chip on" data-stack="up">Mouth up</button>
         <button type="button" class="chip" data-stack="invert">Base to base</button>
       </div>
-      <p class="hint" style="margin:-2px 0 8px;">Mouth up = both rims up (locked look). Base to base = bottom pot flipped, bottoms meet in the middle — factory wrap.</p>
+      <p class="hint" style="margin:-2px 0 8px;">Mouth up = both rims up (locked look). Base to base = pots pair even on 1 item: bottom flipped, bottoms meet. 4 pcs = two pairs the same way.</p>
       <button type="button" class="start" id="startMix">Pack 1 pallet</button>
       <div class="row" style="align-items:end;">
         <label class="field"><span>Pallets to show (0 = full box)</span><input id="pltShow" type="number" min="0" step="1" value="0" /></label>
@@ -1832,20 +1832,55 @@
       function packVolume(stacks, L, W, innerH) {
         var remain = stacks.slice().sort(function (a, b) { return b.d - a.d || b.h - a.h; });
         var columns = [];
-        remain.forEach(function (s) {
-          var placed = false;
-          for (var c = 0; c < columns.length; c++) {
-            var col = columns[c];
-            if (s.d > col.d + 1e-6) continue;
-            var addH = mixStack === "invert" ? s.h : s.h * 0.62;
-            if (col.h + addH > innerH + 1e-6) continue;
-            col.items.push(s);
-            col.h += addH;
-            placed = true;
-            break;
+        if (mixStack === "invert") {
+          var leftover = remain.slice();
+          var pairs = [];
+          while (leftover.length) {
+            var a = leftover.shift();
+            var pi = -1;
+            var aid = a.outer && a.outer.id;
+            for (var i = 0; i < leftover.length; i++) {
+              var bid = leftover[i].outer && leftover[i].outer.id;
+              if (aid && bid && aid === bid) { pi = i; break; }
+            }
+            if (pi < 0 && leftover.length) pi = 0;
+            if (pi >= 0) {
+              var b = leftover.splice(pi, 1)[0];
+              pairs.push({ d: Math.max(a.d, b.d), h: a.h + b.h, items: [a, b] });
+            } else {
+              pairs.push({ d: a.d, h: a.h, items: [a] });
+            }
           }
-          if (!placed) columns.push({ d: s.d, h: s.h, items: [s] });
-        });
+          pairs.forEach(function (p) {
+            var placed = false;
+            for (var c = 0; c < columns.length; c++) {
+              var col = columns[c];
+              if (p.d > col.d + 1e-6) continue;
+              if (col.h + p.h > innerH + 1e-6) continue;
+              col.items = col.items.concat(p.items);
+              col.h += p.h;
+              if (p.d > col.d) col.d = p.d;
+              placed = true;
+              break;
+            }
+            if (!placed) columns.push({ d: p.d, h: p.h, items: p.items.slice() });
+          });
+        } else {
+          remain.forEach(function (s) {
+            var placed = false;
+            for (var c = 0; c < columns.length; c++) {
+              var col = columns[c];
+              if (s.d > col.d + 1e-6) continue;
+              var addH = s.h * 0.62;
+              if (col.h + addH > innerH + 1e-6) continue;
+              col.items.push(s);
+              col.h += addH;
+              placed = true;
+              break;
+            }
+            if (!placed) columns.push({ d: s.d, h: s.h, items: [s] });
+          });
+        }
         var planeStacks = columns.map(function (col) {
           return { d: col.d, h: col.h, items: col.items, outer: col.items[0].outer, inner: col.items[0].inner, pack: col.items[0].pack };
         });
@@ -2341,18 +2376,15 @@
             addPotAt(s.outer, dM, hM, base, false);
             return hM;
           }
-          if (mixStack === "invert" && items.length >= 2) {
-            var s0 = items[0];
-            var h0 = Math.max(0.04, (s0.outer ? potPack(s0.outer).h : s0.h) / 100);
-            addPotAt(s0.outer, s0.d / 100, h0, 0, looksLikeFigure(s0.outer), 0, 0, true);
-            var s1 = items[1];
-            var h1 = Math.max(0.04, (s1.outer ? potPack(s1.outer).h : s1.h) / 100);
-            addPotAt(s1.outer, s1.d / 100, h1, h0, looksLikeFigure(s1.outer), 0, 0, false);
-            var liftInv = h0 + h1;
-            for (var ii = 2; ii < items.length; ii++) {
-              var usedInv = drawStack(items[ii], liftInv);
-              liftInv += usedInv;
-            }
+          if (mixStack === "invert") {
+            var liftInv = 0;
+            items.forEach(function (s, si) {
+              var dM = s.d / 100;
+              var hM = Math.max(0.04, (s.outer ? potPack(s.outer).h : s.h) / 100);
+              var flip = (si % 2 === 0);
+              addPotAt(s.outer, dM, hM, liftInv, looksLikeFigure(s.outer), 0, 0, flip);
+              liftInv += hM;
+            });
           } else {
             var lift = 0;
             items.forEach(function (s, i) {
