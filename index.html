@@ -185,6 +185,8 @@
     .propose .k { font-size: 10px; color: #c4a574; letter-spacing: .08em; text-transform: uppercase; }
     .propose .v { font-family: "Barlow Condensed", sans-serif; font-weight: 800; font-size: 22px; letter-spacing: .02em; margin: 2px 0 4px; }
     .propose .s { font-size: 11px; color: #d9d0bf; line-height: 1.4; }
+    .propose.fill { border-color: rgba(94,122,82,.55); background: rgba(94,122,82,.12); }
+    .propose.fill .k { color: #9cba90; }
     .step { font-family: "Barlow Condensed", sans-serif; font-weight: 800; letter-spacing: .08em; font-size: 12px; color: #f3ead8; margin: 12px 0 6px; text-transform: uppercase; }
     .step i { color: var(--alpha); margin-right: 6px; }
     @media (max-width: 860px) {
@@ -395,6 +397,11 @@
         <div class="v" id="mixProposeSize">Pack first</div>
         <div class="s" id="mixProposeWhy">Auto will show L × W so 2 pallets sit in 2.35 m. Then the table below is qty of each item to fill 20' / 40'GP / 40HC.</div>
       </div>
+      <div class="propose fill" id="mixFill">
+        <div class="k">Fill leftover with a second pallet</div>
+        <div class="v" id="mixFillSize">Pack pallet into container</div>
+        <div class="s" id="mixFillWhy">If leftover W or L is big enough, Mix picks one standard size for that hole — size, pcs on that pallet, pallet count, and total pcs.</div>
+      </div>
       <div id="mixVerdict" class="verdict hold">
         <div>
           <div class="stamp" id="mixStamp">READY</div>
@@ -410,7 +417,7 @@
         </tbody>
       </table>
       <div class="sec">To fill 1 box with this mix</div>
-      <p class="hint" style="margin:-2px 0 6px;">Same mix on every pallet. Qty = how many of that item go in a full 20'GP / 40'GP / 40HC.</p>
+      <p class="hint" style="margin:-2px 0 6px;">Qty includes main pallet + one leftover fill size if it fits. Same mix on every pallet of that size.</p>
       <table>
         <thead><tr><th>Item</th><th class="num">1 pallet</th><th class="num">20'GP</th><th class="num">40'GP</th><th class="num">40HC</th></tr></thead>
         <tbody id="mixBreak"></tbody>
@@ -2003,6 +2010,136 @@
         function mm(m) { return Math.round(m * 1000); }
         return "leftover L " + mm(fit.gapL) + " · W " + mm(fit.gapW) + " · H " + mm(fit.gapH) + " mm";
       }
+      function layoutInPocket(boxL, boxW, boxH, cL, cW, cH) {
+        var gap = BOARD_CM / 100;
+        function layout(cl, cw, rot) {
+          var nx = Math.max(0, Math.floor((boxL + gap + 1e-9) / (cl + gap)));
+          var ny = Math.max(0, Math.floor((boxW + gap + 1e-9) / (cw + gap)));
+          var nz = Math.max(0, Math.floor((boxH + gap + 1e-9) / (cH + gap)));
+          var usedL = nx > 0 ? nx * cl + Math.max(0, nx - 1) * gap : 0;
+          var usedW = ny > 0 ? ny * cw + Math.max(0, ny - 1) * gap : 0;
+          var usedH = nz > 0 ? nz * cH + Math.max(0, nz - 1) * gap : 0;
+          if (usedL > boxL + 1e-9) { nx = Math.max(0, nx - 1); usedL = nx > 0 ? nx * cl + Math.max(0, nx - 1) * gap : 0; }
+          if (usedW > boxW + 1e-9) { ny = Math.max(0, ny - 1); usedW = ny > 0 ? ny * cw + Math.max(0, ny - 1) * gap : 0; }
+          if (usedH > boxH + 1e-9) { nz = Math.max(0, nz - 1); usedH = nz > 0 ? nz * cH + Math.max(0, nz - 1) * gap : 0; }
+          return {
+            nx: nx, ny: ny, nz: nz, n: nx * ny * Math.max(nz, 0),
+            cL: cl, cW: cw, rot: rot,
+            gapL: Math.max(0, boxL - usedL),
+            gapW: Math.max(0, boxW - usedW),
+            gapH: Math.max(0, boxH - usedH),
+            usedL: usedL, usedW: usedW, usedH: usedH
+          };
+        }
+        var a = layout(cL, cW, false);
+        var b = layout(cW, cL, true);
+        if (b.n > a.n) return b;
+        if (b.n === a.n && (b.gapL + b.gapW + b.gapH) < (a.gapL + a.gapW + a.gapH)) return b;
+        return a;
+      }
+      function sameFloor(a, b) {
+        var aL = Number(a.L), aW = Number(a.W), bL = Number(b.L), bW = Number(b.W);
+        return (Math.abs(aL - bL) < 0.6 && Math.abs(aW - bW) < 0.6) ||
+          (Math.abs(aL - bW) < 0.6 && Math.abs(aW - bL) < 0.6);
+      }
+      function fillSizeList(Hcm) {
+        var h = Math.max(20, Number(Hcm) || FACTORY_CRATE.H);
+        var list = [{ key: "101x65", L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: h, name: "101×65" }];
+        PALLET_STANDARDS.forEach(function (s) {
+          list.push({ key: s.key, L: s.L, W: s.W, H: h, name: s.L + "×" + s.W });
+        });
+        return list;
+      }
+      function countPcs(map) {
+        var n = 0;
+        Object.keys(map || {}).forEach(function (id) { n += map[id]; });
+        return n;
+      }
+      function leftoverPockets(cont, fit) {
+        var gap = BOARD_CM / 100;
+        var pockets = [];
+        var wBox = Math.max(0, fit.gapW - gap);
+        if (wBox >= 0.20 && fit.usedL >= 0.20) {
+          pockets.push({
+            kind: "W",
+            boxL: fit.usedL, boxW: wBox, boxH: cont.H,
+            ox: 0, oz0: -cont.W / 2 + fit.usedW + gap
+          });
+        }
+        var lBox = Math.max(0, fit.gapL - gap);
+        if (lBox >= 0.20) {
+          pockets.push({
+            kind: "L",
+            boxL: lBox, boxW: cont.W, boxH: cont.H,
+            ox: fit.usedL + gap, oz0: -cont.W / 2
+          });
+        }
+        return pockets;
+      }
+      function proposeFill(cont, fit) {
+        if (!mixPlan || !mixPlan.nested || !mixPlan.nested.stacks || !fit) return null;
+        var pal = mixPlan.pal;
+        var stacks = mixPlan.nested.stacks;
+        var pockets = leftoverPockets(cont, fit);
+        if (!pockets.length) return null;
+        var best = null;
+        fillSizeList(pal.H).forEach(function (sz) {
+          if (sameFloor(sz, pal)) return;
+          var vol = packVolume(stacks, sz.L, sz.W, crateInnerH(sz.H));
+          var pcsMap = countOnVolume(vol.plane);
+          var pcs = countPcs(pcsMap);
+          if (pcs < 1) return;
+          var crate = crateOuter({ L: sz.L, W: sz.W, H: sz.H, boxH: sz.H });
+          var slots = [];
+          var n = 0;
+          pockets.forEach(function (pk) {
+            var lay = layoutInPocket(pk.boxL, pk.boxW, pk.boxH, crate.L, crate.W, crate.H);
+            if (lay.n < 1) return;
+            n += lay.n;
+            slots.push({ pocket: pk, lay: lay, crate: crate });
+          });
+          if (n < 1) return;
+          var extra = n * pcs;
+          var rest = slots.reduce(function (s, x) { return s + x.lay.gapL + x.lay.gapW + x.lay.gapH; }, 99);
+          var better = !best || extra > best.extra ||
+            (extra === best.extra && rest < best.rest) ||
+            (extra === best.extra && rest === best.rest && sz.L * sz.W < best.sz.L * best.sz.W);
+          if (better) best = { sz: sz, crate: crate, vol: vol, pcs: pcs, pcsMap: pcsMap, n: n, extra: extra, rest: rest, slots: slots };
+        });
+        return best;
+      }
+      function paintMixFill() {
+        var sizeEl = document.getElementById("mixFillSize");
+        var whyEl = document.getElementById("mixFillWhy");
+        if (!mixPlan || !mixPlan.per) {
+          sizeEl.textContent = "Pack pallet into container";
+          whyEl.textContent = "If leftover W or L is big enough, Mix picks one standard size for that hole.";
+          mixPlan && (mixPlan.fill = null);
+          return;
+        }
+        var cont = contById(mixContId);
+        var fit = palletsInCont(cont, mixPlan.crate);
+        var fill = proposeFill(cont, fit);
+        mixPlan.fill = fill;
+        var mainPcs = (mixPlan.per || 0) * fit.n;
+        if (!fill) {
+          sizeEl.textContent = "No second pallet fits leftover";
+          whyEl.textContent = "Main " + mixPlan.pal.L + "×" + mixPlan.pal.W + "×" + mixPlan.pal.H + " cm · " + fit.n + " PLT · " + mixPlan.per + " pcs / PLT = " + mainPcs + " pcs. " + leftoverMm(fit) + " is too small for another standard size.";
+          return;
+        }
+        sizeEl.textContent = fill.sz.L + " × " + fill.sz.W + " × " + fill.sz.H + " cm  ·  " + fill.n + " PLT  ·  " + fill.pcs + " pcs / PLT";
+        var itemBits = enabledPots().map(function (p) {
+          var n1 = fill.pcsMap[p.id] || 0;
+          if (!n1) return "";
+          var unit = isSet(p) ? " set" : " pc";
+          return p.name + " " + n1 + unit + " × " + fill.n + " = " + (n1 * fill.n) + unit;
+        }).filter(Boolean);
+        whyEl.textContent =
+          "Main " + mixPlan.pal.L + "×" + mixPlan.pal.W + "×" + mixPlan.pal.H + " cm · " + fit.n + " PLT · " + mixPlan.per + " pcs / PLT = " + mainPcs + " pcs. " +
+          "Fill leftover with " + fill.sz.L + "×" + fill.sz.W + "×" + fill.sz.H + " cm · " + fill.n + " PLT · " + fill.pcs + " pcs / PLT = " + fill.extra + " pcs. " +
+          (itemBits.length ? itemBits.join(" · ") + ". " : "") +
+          "Total " + (mainPcs + fill.extra) + " pcs.";
+      }
       function runMix() {
         var list = enabledPots();
         if (!list.length) {
@@ -2096,7 +2233,12 @@
           document.getElementById("mixStamp").textContent = "GO";
           document.getElementById("mixWhy").textContent = nWant + " pcs on 1 crate " + pal.L + "×" + pal.W + "×" + pal.H + " · nest + stack " + highTxt + " · " + acrossTxt + " · " + fit40.n + " PLT on 40'GP.";
         }
+        paintMixFill();
         rebuildMix();
+      }
+      function fillForCont(c) {
+        if (!mixPlan || !mixPlan.nested) return null;
+        return proposeFill(c, palletsInCont(c, mixPlan.crate));
       }
       function paintMixBreak() {
         var host = document.getElementById("mixBreak");
@@ -2106,41 +2248,64 @@
           return;
         }
         var list = enabledPots();
+        var fills = CONTAINERS.map(function (c) { return fillForCont(c); });
         var tot = [0, 0, 0, 0];
         list.forEach(function (p) {
           var n1 = mixPlan.perItem[p.id] || 0;
           var unit = isSet(p) ? " set" : " pc";
           var tr = document.createElement("tr");
           var nums = [n1];
-          var cells = CONTAINERS.map(function (c) {
+          var cells = CONTAINERS.map(function (c, i) {
             var fit = palletsInCont(c, mixPlan.crate);
-            nums.push(n1 * fit.n);
-            return "<td class='num'>" + (n1 * fit.n) + unit + "</td>";
+            var n = n1 * fit.n;
+            var fill = fills[i];
+            if (fill) n += (fill.pcsMap[p.id] || 0) * fill.n;
+            nums.push(n);
+            return "<td class='num'>" + n + unit + "</td>";
           });
           tot[0] += n1; tot[1] += nums[1]; tot[2] += nums[2]; tot[3] += nums[3];
           tr.innerHTML = "<td>" + p.name + "</td><td class='num'>" + n1 + unit + "</td>" + cells.join("");
           host.appendChild(tr);
         });
         var sum = document.createElement("tr");
-        sum.innerHTML = "<td><b>Mix total</b></td><td class='num'><b>" + tot[0] + "</b></td><td class='num'><b>" + tot[1] + "</b></td><td class='num'><b>" + tot[2] + "</b></td><td class='num'><b>" + tot[3] + "</b></td>";
+        sum.innerHTML = "<td><b>Total pcs</b></td><td class='num'><b>" + tot[0] + "</b></td><td class='num'><b>" + tot[1] + "</b></td><td class='num'><b>" + tot[2] + "</b></td><td class='num'><b>" + tot[3] + "</b></td>";
         host.appendChild(sum);
+        var main = document.createElement("tr");
+        var mainCells = CONTAINERS.map(function (c) {
+          var fit = palletsInCont(c, mixPlan.crate);
+          return "<td class='num'>" + fit.n + " × " + mixPlan.pal.L + "×" + mixPlan.pal.W + "</td>";
+        }).join("");
+        main.innerHTML = "<td>Main pallet</td><td class='num'>" + mixPlan.pal.L + "×" + mixPlan.pal.W + " · " + mixPlan.per + " pcs</td>" + mainCells;
+        host.appendChild(main);
+        var fillRow = document.createElement("tr");
+        var fillCells = fills.map(function (fill) {
+          if (!fill) return "<td class='num'>—</td>";
+          return "<td class='num'>" + fill.n + " × " + fill.sz.L + "×" + fill.sz.W + " · " + fill.pcs + " pcs</td>";
+        }).join("");
+        fillRow.innerHTML = "<td>Fill leftover</td><td class='num'>one other size</td>" + fillCells;
+        host.appendChild(fillRow);
       }
       function paintMixCards() {
         var host = document.getElementById("mixCards");
         host.innerHTML = "";
         CONTAINERS.forEach(function (c) {
           var fit = mixPlan ? palletsInCont(c, mixPlan.crate) : null;
+          var fill = mixPlan && fit ? proposeFill(c, fit) : null;
           var btn = document.createElement("button");
           btn.type = "button";
           btn.className = "card" + (mixView === "cont" && c.id === mixContId ? " on" : "");
           var extra = fit
-            ? ("<br>" + fit.n + " pallets · " + fit.nx + "×" + fit.ny + "×" + fit.nz + "<br>" + leftoverMm(fit))
+            ? ("<br>" + fit.n + " × " + mixPlan.pal.L + "×" + mixPlan.pal.W + "<br>" + leftoverMm(fit) +
+              (fill ? "<br>fill " + fill.n + " × " + fill.sz.L + "×" + fill.sz.W : ""))
             : "<br>Pack pallet first";
-          btn.innerHTML = "<div class='n'>" + c.name + "</div><div class='aka'>" + c.aka + "</div><div class='v'>Internal " + c.L.toFixed(3) + " × " + c.W.toFixed(3) + " × " + c.H.toFixed(3) + " m" + extra + "</div><div class='fit " + (fit && fit.n ? "go" : "") + "'>" + (fit ? fit.n + " PLT" : "—") + "</div>";
+          var fitTxt = fit ? (fill ? (fit.n + fill.n) + " PLT" : fit.n + " PLT") : "—";
+          btn.innerHTML = "<div class='n'>" + c.name + "</div><div class='aka'>" + c.aka + "</div><div class='v'>Internal " + c.L.toFixed(3) + " × " + c.W.toFixed(3) + " × " + c.H.toFixed(3) + " m" + extra + "</div><div class='fit " + (fit && fit.n ? "go" : "") + "'>" + fitTxt + "</div>";
           btn.onclick = function () {
             mixContId = c.id;
             mixView = "cont";
             paintMixCards();
+            paintMixFill();
+            paintMixBreak();
             rebuildMix();
           };
           host.appendChild(btn);
@@ -2490,16 +2655,63 @@
             }
           }
         }
-        if (fit.gapW > 0.002) {
+        paintMixFill();
+        var fill = mixPlan.fill;
+        var filledW = false;
+        var filledL = false;
+        if (fill && fill.slots && fill.slots.length) {
+          fill.slots.forEach(function (slot) {
+            var pk = slot.pocket;
+            var lay = slot.lay;
+            var fCrate = slot.crate;
+            if (pk.kind === "W") filledW = true;
+            if (pk.kind === "L") filledL = true;
+            var fShown = 0;
+            for (var fiz = 0; fiz < lay.nz; fiz++) {
+              for (var fix = 0; fix < lay.nx; fix++) {
+                for (var fiy = 0; fiy < lay.ny; fiy++) {
+                  var fpx = pk.ox + fix * (lay.cL + gap);
+                  var fpy = fiz * (fCrate.H + gap);
+                  var fpz = pk.oz0 + lay.cW / 2 + fiy * (lay.cW + gap);
+                  if (fShown === 0) {
+                    if (lay.rot) {
+                      var gF = root.children.length;
+                      drawOneCrate(fCrate, fill.vol.plane, 0, 0, 0);
+                      var crateF = root.children[gF];
+                      crateF.rotation.y = Math.PI / 2;
+                      crateF.position.set(fpx + fCrate.W / 2, fpy, fpz + fCrate.L / 2);
+                    } else {
+                      drawOneCrate(fCrate, fill.vol.plane, fpx, fpy, fpz);
+                    }
+                  } else {
+                    var fBox = boxMesh(lay.cL * 0.98, fCrate.H * 0.98, lay.cW * 0.98, woodMat(0x6e8a5a));
+                    fBox.position.set(fpx + lay.cL / 2, fpy + fCrate.H / 2, fpz);
+                    root.add(fBox);
+                  }
+                  fShown++;
+                }
+              }
+            }
+            if (lay.gapW > 0.002) {
+              slab(pk.ox + lay.usedL / 2, cont.H / 2, pk.oz0 + lay.usedW + lay.gapW / 2, Math.max(lay.usedL, 0.2), cont.H, lay.gapW, 0xc45c12, 0.28);
+            }
+            if (lay.gapL > 0.002) {
+              slab(pk.ox + lay.usedL + lay.gapL / 2, cont.H / 2, pk.oz0 + pk.boxW / 2, lay.gapL, cont.H, Math.max(pk.boxW, 0.2), 0xc45c12, 0.22);
+            }
+          });
+        }
+        if (!filledW && fit.gapW > 0.002) {
           slab(fit.usedL / 2, cont.H / 2, -cont.W / 2 + fit.usedW + fit.gapW / 2, Math.max(fit.usedL, 0.2), cont.H, fit.gapW, 0xc45c12, 0.32);
         }
         if (fit.gapH > 0.004) {
           slab(fit.usedL / 2, fit.usedH + fit.gapH / 2, -cont.W / 2 + fit.usedW / 2, Math.max(fit.usedL, 0.2), fit.gapH, Math.max(fit.usedW, 0.2), 0x3d8ea8, 0.22);
         }
-        if (fit.gapL > 0.002) {
+        if (!filledL && fit.gapL > 0.002) {
           slab(fit.usedL + fit.gapL / 2, cont.H / 2, 0, fit.gapL, cont.H, cont.W, 0xc45c12, 0.22);
         }
-        var leftLab = makeLabel(fit.n + " PLT  " + fit.nx + "×" + fit.ny + "×" + fit.nz + "  " + leftoverMm(fit));
+        var labTxt = fit.n + " × " + mixPlan.pal.L + "×" + mixPlan.pal.W + "  " + leftoverMm(fit);
+        if (fill) labTxt += "  + fill " + fill.n + " × " + fill.sz.L + "×" + fill.sz.W + "  total " + (fit.n * mixPlan.per + fill.extra) + " pcs";
+        var leftLab = makeLabel(labTxt);
         leftLab.position.set(cont.L / 2, cont.H + 0.88, 0);
         root.add(leftLab);
       }
@@ -2540,14 +2752,22 @@
         lines.push("Nest " + mixPlan.nested.nested + " · stack " + mixPlan.levels + " high");
         CONTAINERS.forEach(function (c) {
           var fit = palletsInCont(c, crate);
-          lines.push(c.aka + " · " + fit.n + " PLT · " + fit.nx + "×" + fit.ny + "×" + fit.nz);
+          var fill = proposeFill(c, fit);
+          var line = c.aka + " · main " + fit.n + " × " + pal.L + "×" + pal.W;
+          if (fill) line += " · fill " + fill.n + " × " + fill.sz.L + "×" + fill.sz.W + " · " + fill.pcs + " pcs/PLT · total " + (fit.n * mixPlan.per + fill.extra) + " pcs";
+          else line += " · " + leftoverMm(fit);
+          lines.push(line);
         });
         enabledPots().forEach(function (p) {
           var n1 = mixPlan.perItem[p.id] || 0;
           var unit = isSet(p) ? " set" : " pc";
           var row = p.name + " · 1 PLT " + n1 + unit;
           CONTAINERS.forEach(function (c) {
-            row += " · " + c.id + " " + (n1 * palletsInCont(c, crate).n) + unit;
+            var fit = palletsInCont(c, crate);
+            var n = n1 * fit.n;
+            var fill = proposeFill(c, fit);
+            if (fill) n += (fill.pcsMap[p.id] || 0) * fill.n;
+            row += " · " + c.id + " " + n + unit;
           });
           lines.push(row);
         });
@@ -2665,6 +2885,8 @@
         mixContId = "40DC";
         mixView = "cont";
         paintMixCards();
+        paintMixFill();
+        paintMixBreak();
         rebuildMix();
       };
       document.getElementById("pltShow").addEventListener("change", function () {
