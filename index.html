@@ -170,13 +170,14 @@
     .qty-row { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 8px; align-items: end; margin-bottom: 8px; }
     .pack-toggle { display: flex; gap: 4px; }
     .pack-toggle .chip { flex: 1; text-align: center; padding: 8px 6px; min-height: 36px; }
-    .mix-hero { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; align-items: end; margin: 0 0 10px; }
+    .mix-hero { display: grid; grid-template-columns: 1fr; gap: 8px; align-items: end; margin: 0 0 8px; }
     .mix-hero .field span { font-size: 11px; color: #c4a574; }
     .mix-hero input, .mix-hero select { font-size: 18px; min-height: 44px; font-weight: 600; }
-    .pal-mode { display: flex; gap: 4px; }
-    .pal-mode .chip { flex: 1; text-align: center; padding: 10px 6px; }
-    .pal-custom { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 8px; }
+    .pal-mode { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
+    .pal-mode .chip { flex: 0 0 auto; text-align: center; padding: 8px 8px; min-width: 0; }
+    .pal-custom { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 0 0 8px; }
     .pal-custom.off { display: none; }
+    .pal-custom input[readonly] { color: #9a907e; }
     .propose {
       border: 1px solid rgba(196,165,116,.4); background: rgba(196,165,116,.1);
       padding: 10px 12px; margin: 0 0 10px; color: #f3ead8;
@@ -345,12 +346,18 @@
       <div class="step"><i>1</i> Customer mix on 1 pallet</div>
       <div class="mix-hero">
         <label class="field"><span>How many items in 1 pallet box</span><input id="mixOnPal" type="number" min="1" step="1" value="16" /></label>
-        <label class="field"><span>Pallet size</span>
-          <div class="pal-mode" id="palMode">
-            <button type="button" class="chip on" data-pal="auto">Auto · best 2-across</button>
-            <button type="button" class="chip" data-pal="custom">Customer size</button>
-          </div>
-        </label>
+      </div>
+      <label class="field" style="margin:0 0 4px;"><span>Pallet size</span></label>
+      <div class="pal-mode" id="palMode">
+        <button type="button" class="chip on" data-pal="auto">Auto · 101×65</button>
+        <button type="button" class="chip" data-pal="76x76">76×76</button>
+        <button type="button" class="chip" data-pal="96x96">96×96</button>
+        <button type="button" class="chip" data-pal="105x105">105×105</button>
+        <button type="button" class="chip" data-pal="114x114">114×114</button>
+        <button type="button" class="chip" data-pal="118x124">118×124</button>
+        <button type="button" class="chip" data-pal="125x125">125×125</button>
+        <button type="button" class="chip" data-pal="135x135">135×135</button>
+        <button type="button" class="chip" data-pal="custom">Customer</button>
       </div>
       <input id="palSize" type="hidden" value="auto" />
       <div class="pal-custom off" id="palCustom">
@@ -359,7 +366,7 @@
         <label class="field"><span>Crate H cm</span><input id="palBoxH" type="number" step="0.1" min="20" value="65" /></label>
       </div>
       <input id="palH" type="hidden" value="12" />
-      <p class="hint" style="margin:-4px 0 8px;">Factory crate <b>101 × 65 × 65</b> — fill the box (rotate on the floor if that packs more). Leftover mm shown. Mix 16 nest + stack inside that 65 cm. Auto uses this crate. Customer size = you type L × W × H.</p>
+      <p class="hint" style="margin:-4px 0 8px;">Auto = factory crate <b>101 × 65 × 65</b>. Or pick a standard pallet. Customer = type L × W × H. Fill the box (rotate on the floor if that packs more). Leftover mm shown. A square 125 cannot sit 2-across in 2.35 m — leftover width is real, not a bug.</p>
 
       <div class="step"><i>2</i> Items in the mix</div>
       <p class="hint" style="margin:-2px 0 8px;">Every item is on the pallet, split evenly. Pack picks the fullest count that still fits the crate, so each pallet in the container is full. Mix = can nest. Set = already 3-in-1, do not put other items inside.</p>
@@ -1581,9 +1588,20 @@
       var mixView = "pallet";
       var mixStack = "up";
       var FACTORY_CRATE = { L: 101, W: 65, H: 65, name: "101×65×65 factory" };
+      var PALLET_STANDARDS = [
+        { key: "76x76", L: 76, W: 76 },
+        { key: "96x96", L: 96, W: 96 },
+        { key: "105x105", L: 105, W: 105 },
+        { key: "114x114", L: 114, W: 114 },
+        { key: "118x124", L: 118, W: 124 },
+        { key: "125x125", L: 125, W: 125 },
+        { key: "135x135", L: 135, W: 135 }
+      ];
       var PALLET_CATALOG = [
         { key: "101x65", L: 101, W: 65, H: 65, name: "101×65×65 factory" }
-      ];
+      ].concat(PALLET_STANDARDS.map(function (s) {
+        return { key: s.key, L: s.L, W: s.W, H: 65, name: s.L + "×" + s.W };
+      }));
       var BOX_W_M = 2.35;
       var DECK_CM = 12;
       function twoAcrossScore(Lcm, Wcm) {
@@ -1816,15 +1834,36 @@
         return a.area - b.area;
       }
       function palMode() {
-        return document.getElementById("palSize").value === "custom" ? "custom" : "auto";
+        return document.getElementById("palSize").value || "auto";
+      }
+      function standardPal(key) {
+        for (var i = 0; i < PALLET_STANDARDS.length; i++) {
+          if (PALLET_STANDARDS[i].key === key) return PALLET_STANDARDS[i];
+        }
+        return null;
+      }
+      function crateHTyped() {
+        return Math.max(20, parseFloat(document.getElementById("palBoxH").value) || FACTORY_CRATE.H);
       }
       function customPal() {
         return {
           L: Math.max(20, parseFloat(document.getElementById("palL").value) || 101),
           W: Math.max(20, parseFloat(document.getElementById("palW").value) || 65),
-          H: Math.max(20, parseFloat(document.getElementById("palBoxH").value) || 65),
+          H: crateHTyped(),
           name: "customer"
         };
+      }
+      function chosenPallet() {
+        var mode = palMode();
+        if (mode === "custom") {
+          var c = customPal();
+          return { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
+        }
+        var std = standardPal(mode);
+        if (std) {
+          return { L: std.L, W: std.W, H: crateHTyped(), name: std.L + "×" + std.W + "×" + crateHTyped() };
+        }
+        return { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: FACTORY_CRATE.name };
       }
       function crateInnerH(boxH) {
         return Math.max(8, (Number(boxH) || FACTORY_CRATE.H) - DECK_CM);
@@ -1924,13 +1963,7 @@
         return map;
       }
       function fitPallet(stacks, boxH) {
-        var size;
-        if (palMode() === "custom") {
-          var c = customPal();
-          size = { L: c.L, W: c.W, H: c.H, name: "customer " + c.L + "×" + c.W + "×" + c.H };
-        } else {
-          size = { L: FACTORY_CRATE.L, W: FACTORY_CRATE.W, H: FACTORY_CRATE.H, name: FACTORY_CRATE.name };
-        }
+        var size = chosenPallet();
         var innerH = crateInnerH(size.H);
         var vol = packVolume(stacks, size.L, size.W, innerH);
         return {
@@ -2028,6 +2061,9 @@
           document.getElementById("palL").value = pal.L;
           document.getElementById("palW").value = pal.W;
           document.getElementById("palBoxH").value = pal.H;
+        } else if (standardPal(palMode())) {
+          document.getElementById("palL").value = pal.L;
+          document.getElementById("palW").value = pal.W;
         }
         var crate = crateOuter(pal);
         var plane = pal.plane;
@@ -2056,7 +2092,7 @@
         var fitHC = palletsInCont(CONTAINERS[2], crate);
         document.getElementById("mixProposeSize").textContent = pal.L + " × " + pal.W + " × " + pal.H + " cm";
         document.getElementById("mixProposeWhy").textContent =
-          (palMode() === "auto" ? "Factory crate: " : "Customer crate: ") +
+          (palMode() === "auto" ? "Factory crate: " : (standardPal(palMode()) ? "Standard pallet: " : "Customer crate: ")) +
           pal.L + " × " + pal.W + " × " + pal.H + " cm. " +
           "20'GP " + fit20.n + " PLT " + fit20.nx + "×" + fit20.ny + "×" + fit20.nz + " · " + leftoverMm(fit20) + ". " +
           "40'GP " + fit40.n + " PLT " + fit40.nx + "×" + fit40.ny + "×" + fit40.nz + " · " + leftoverMm(fit40) + ". " +
@@ -2572,7 +2608,7 @@
           if (!raw) { toast("No saved mix"); return; }
           var job = JSON.parse(raw);
           document.getElementById("mixOnPal").value = job.mixOnPal || 16;
-          setPalMode(job.palMode === "custom" ? "custom" : "auto");
+          setPalMode(job.palMode || "auto");
           if (job.palL) document.getElementById("palL").value = job.palL;
           if (job.palW) document.getElementById("palW").value = job.palW;
           if (job.palBoxH) document.getElementById("palBoxH").value = job.palBoxH;
@@ -2598,8 +2634,21 @@
       wireImportAll(document.getElementById("importMixPhotos"), "mix");
       wireImportAll(document.getElementById("importCartonPhotos"), "carton");
       function setPalMode(mode) {
-        document.getElementById("palSize").value = mode === "custom" ? "custom" : "auto";
-        document.getElementById("palCustom").classList.toggle("off", mode !== "custom");
+        var std = standardPal(mode);
+        if (mode !== "custom" && mode !== "auto" && !std) mode = "auto";
+        document.getElementById("palSize").value = mode;
+        document.getElementById("palCustom").classList.toggle("off", mode === "auto");
+        var lockFloor = !!std;
+        document.getElementById("palL").readOnly = lockFloor;
+        document.getElementById("palW").readOnly = lockFloor;
+        if (mode === "auto") {
+          document.getElementById("palL").value = FACTORY_CRATE.L;
+          document.getElementById("palW").value = FACTORY_CRATE.W;
+          document.getElementById("palBoxH").value = FACTORY_CRATE.H;
+        } else if (std) {
+          document.getElementById("palL").value = std.L;
+          document.getElementById("palW").value = std.W;
+        }
         document.querySelectorAll("#palMode [data-pal]").forEach(function (b) {
           b.classList.toggle("on", b.getAttribute("data-pal") === mode);
         });
