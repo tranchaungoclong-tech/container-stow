@@ -382,7 +382,7 @@
         <button type="button" class="chip on" data-stack="up">Mouth up</button>
         <button type="button" class="chip" data-stack="invert">Base to base</button>
       </div>
-      <p class="hint" style="margin:-2px 0 8px;">Mouth up = both rims up (locked look). Base to base = pots pair even on 1 item: bottom flipped, bottoms meet. 4 pcs = two pairs the same way.</p>
+      <p class="hint" style="margin:-2px 0 8px;">Mouth up = both rims up (locked look). Base to base = stack until crate H fills (3 high if height allows). 1 item still pairs. Bottom flipped, bottoms meet.</p>
       <button type="button" class="start" id="startMix">Pack 1 pallet</button>
       <div class="row" style="align-items:end;">
         <label class="field"><span>Pallets to show (0 = full box)</span><input id="pltShow" type="number" min="0" step="1" value="0" /></label>
@@ -1873,36 +1873,20 @@
         var columns = [];
         if (mixStack === "invert") {
           var leftover = remain.slice();
-          var pairs = [];
-          while (leftover.length) {
-            var a = leftover.shift();
-            var pi = -1;
-            var aid = a.outer && a.outer.id;
-            for (var i = 0; i < leftover.length; i++) {
-              var bid = leftover[i].outer && leftover[i].outer.id;
-              if (aid && bid && aid === bid) { pi = i; break; }
-            }
-            if (pi < 0 && leftover.length) pi = 0;
-            if (pi >= 0) {
-              var b = leftover.splice(pi, 1)[0];
-              pairs.push({ d: Math.max(a.d, b.d), h: a.h + b.h, items: [a, b] });
-            } else {
-              pairs.push({ d: a.d, h: a.h, items: [a] });
-            }
-          }
-          pairs.forEach(function (p) {
+          if (leftover.length === 1) leftover.push(leftover[0]);
+          leftover.forEach(function (s) {
             var placed = false;
             for (var c = 0; c < columns.length; c++) {
               var col = columns[c];
-              if (p.d > col.d + 1e-6) continue;
-              if (col.h + p.h > innerH + 1e-6) continue;
-              col.items = col.items.concat(p.items);
-              col.h += p.h;
-              if (p.d > col.d) col.d = p.d;
+              if (s.d > col.d + 1e-6) continue;
+              if (col.h + s.h > innerH + 1e-6) continue;
+              col.items.push(s);
+              col.h += s.h;
+              if (s.d > col.d) col.d = s.d;
               placed = true;
               break;
             }
-            if (!placed) columns.push({ d: p.d, h: p.h, items: p.items.slice() });
+            if (!placed) columns.push({ d: s.d, h: s.h, items: [s] });
           });
         } else {
           remain.forEach(function (s) {
