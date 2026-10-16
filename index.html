@@ -371,6 +371,11 @@
       <label class="drop" id="importMixPhotos">Import all photos<input type="file" accept="image/*" multiple /></label>
 
       <div class="step"><i>3</i> Pack that pallet</div>
+      <div class="row" id="stackMode" style="margin:0 0 6px;">
+        <button type="button" class="chip on" data-stack="up">Mouth up</button>
+        <button type="button" class="chip" data-stack="invert">Base to base</button>
+      </div>
+      <p class="hint" style="margin:-2px 0 8px;">Mouth up = both rims up (locked look). Base to base = bottom pot flipped, bottoms meet in the middle — factory wrap.</p>
       <button type="button" class="start" id="startMix">Pack 1 pallet</button>
       <div class="row" style="align-items:end;">
         <label class="field"><span>Pallets to show (0 = full box)</span><input id="pltShow" type="number" min="0" step="1" value="0" /></label>
@@ -1574,6 +1579,7 @@
       var mixPlan = null;
       var mixContId = "40DC";
       var mixView = "pallet";
+      var mixStack = "up";
       var FACTORY_CRATE = { L: 101, W: 65, H: 65, name: "101×65×65 factory" };
       var PALLET_CATALOG = [
         { key: "101x65", L: 101, W: 65, H: 65, name: "101×65×65 factory" }
@@ -1831,7 +1837,7 @@
           for (var c = 0; c < columns.length; c++) {
             var col = columns[c];
             if (s.d > col.d + 1e-6) continue;
-            var addH = s.h * 0.62;
+            var addH = mixStack === "invert" ? s.h : s.h * 0.62;
             if (col.h + addH > innerH + 1e-6) continue;
             col.items.push(s);
             col.h += addH;
@@ -2009,7 +2015,7 @@
         var acrossTxt = across >= 2 ? across + " pallets across 2.35 m" : "only 1 across 2.35 m";
         var highTxt = pal.levels > 1 ? pal.levels + " high inside crate" : "1 layer";
         document.getElementById("mixOuter").textContent = pal.L + " × " + pal.W + " × " + pal.H + " cm  ·  " + acrossTxt + "  ·  " + highTxt;
-        document.getElementById("mixNest").textContent = nested.nested + " nested · " + pal.levels + " stack high";
+        document.getElementById("mixNest").textContent = nested.nested + " nested · " + pal.levels + " stack high · " + (mixStack === "invert" ? "base to base" : "mouth up");
         var fit20 = palletsInCont(CONTAINERS[0], crate);
         var fit40 = palletsInCont(CONTAINERS[1], crate);
         var fitHC = palletsInCont(CONTAINERS[2], crate);
@@ -2284,9 +2290,14 @@
           var cx = crate.wood + pl.x / 100;
           var cz = -crate.W / 2 + crate.wood + pl.y / 100;
           var y0 = crate.deck;
-          function addPotAt(pot, d, h, lift, asCut, ox, oz) {
+          function addPotAt(pot, d, h, lift, asCut, ox, oz, flip) {
             var mesh = drawPotMesh(pot, d, h, asCut);
-            mesh.position.set(cx + (ox || 0), y0 + lift, cz + (oz || 0));
+            if (flip) {
+              mesh.rotation.x = Math.PI;
+              mesh.position.set(cx + (ox || 0), y0 + lift + h, cz + (oz || 0));
+            } else {
+              mesh.position.set(cx + (ox || 0), y0 + lift, cz + (oz || 0));
+            }
             g.add(mesh);
           }
           function drawStack(s, base) {
@@ -2330,11 +2341,25 @@
             addPotAt(s.outer, dM, hM, base, false);
             return hM;
           }
-          var lift = 0;
-          items.forEach(function (s, i) {
-            var used = drawStack(s, lift);
-            lift += i === 0 ? used : used * 0.62;
-          });
+          if (mixStack === "invert" && items.length >= 2) {
+            var s0 = items[0];
+            var h0 = Math.max(0.04, (s0.outer ? potPack(s0.outer).h : s0.h) / 100);
+            addPotAt(s0.outer, s0.d / 100, h0, 0, looksLikeFigure(s0.outer), 0, 0, true);
+            var s1 = items[1];
+            var h1 = Math.max(0.04, (s1.outer ? potPack(s1.outer).h : s1.h) / 100);
+            addPotAt(s1.outer, s1.d / 100, h1, h0, looksLikeFigure(s1.outer), 0, 0, false);
+            var liftInv = h0 + h1;
+            for (var ii = 2; ii < items.length; ii++) {
+              var usedInv = drawStack(items[ii], liftInv);
+              liftInv += usedInv;
+            }
+          } else {
+            var lift = 0;
+            items.forEach(function (s, i) {
+              var used = drawStack(s, lift);
+              lift += i === 0 ? used : used * 0.62;
+            });
+          }
         });
         g.position.set(ox, oy, oz);
         root.add(g);
@@ -2351,7 +2376,7 @@
         if (mixView !== "cont") {
           var ox = cont.L + 0.95;
           drawOneCrate(crate, mixPlan.plane, ox, 0, 0);
-          var lab = makeLabel("PALLET OUT  " + mixPlan.pal.L + "x" + mixPlan.pal.W + "x" + mixPlan.pal.H + "  " + (mixPlan.levels || 1) + " high  " + mixPlan.per + " pcs");
+          var lab = makeLabel("PALLET OUT  " + mixPlan.pal.L + "x" + mixPlan.pal.W + "x" + mixPlan.pal.H + "  " + (mixPlan.levels || 1) + " high  " + (mixStack === "invert" ? "BASE-BASE  " : "") + mixPlan.per + " pcs");
           lab.position.set(ox + crate.L / 2, crate.H + 0.42, 0);
           root.add(lab);
           return;
@@ -2529,6 +2554,23 @@
         b.onclick = function () { setPalMode(b.getAttribute("data-pal")); };
       });
       setPalMode("auto");
+      function setStackMode(mode) {
+        mixStack = mode === "invert" ? "invert" : "up";
+        document.querySelectorAll("#stackMode [data-stack]").forEach(function (b) {
+          b.classList.toggle("on", b.getAttribute("data-stack") === mixStack);
+        });
+        if (!mixPlan) return;
+        var keep = mixView;
+        runMix();
+        if (keep === "cont") {
+          mixView = "cont";
+          paintMixCards();
+          rebuildMix();
+        }
+      }
+      document.querySelectorAll("#stackMode [data-stack]").forEach(function (b) {
+        b.onclick = function () { setStackMode(b.getAttribute("data-stack")); };
+      });
       document.getElementById("startMix").onclick = runMix;
       document.getElementById("packInto").onclick = function () {
         if (!mixPlan) runMix();
